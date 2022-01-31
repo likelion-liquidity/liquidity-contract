@@ -27,12 +27,14 @@
     "deploy:cypress": "truffle deploy --network cypress"
   },
   "dependencies": {
+    "@klaytn/contracts": "^0.9.0",
     "caver-js": "^1.5.0",
     "caver-js-ext-kas": "^1.0.1",
     "dotenv": "^15.0.0",
     "truffle-hdwallet-provider-klaytn": "^1.0.13-a"
   },
   "devDependencies": {
+    "chai": "^4.3.6",
     "concurrently": "^5.3.0",
     "ganache-cli": "^6.12.1",
     "openzeppelin-test-helpers": "^0.3.2",
