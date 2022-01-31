@@ -1,13 +1,8 @@
-# klaytn-contracts
+# Liquidity
 
 This repository contains contracts that are helpful to building blockchain applications on Klaytn.
 
 Some files were derived from [openzeppelin contracts v2.3.0](https://github.com/OpenZeppelin/openzeppelin-contracts/releases/tag/v2.3.0).
-
-# Security
-
-WARNING: Please take special care when you use this code in production. We take no responsibility for any security problems you might experience.
-If you find any security problems in the source code, please report it to developer@klaytn.com.
 
 # Prerequisites
 
@@ -18,6 +13,15 @@ The following packages should be installed before using this source code.
 * Node v10.21.0
 * Truffle v5.1.61
 * ganache-cli v6.12.1
+
+# Set Environment
+Before running RPC Client, Change .example-env to .env.
+```
+ACCESS_KEY_ID=NEEDED!
+SECRET_ACCESS_KEY=NEEDED!
+BAOBAB_PRIVATE_KEY=NEEDED!
+CYPRESS_PRIVATE_KEY=NEEDED!
+```
 
 # Package Installation
 
