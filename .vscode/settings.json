@@ -3,5 +3,8 @@
     "solidity.formatter": "prettier", // This is the default so it might be missing.
     "[solidity]": {
         "editor.defaultFormatter": "JuanBlanco.solidity"
-    }
+    },
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.tabWidth": 4,
+    "prettier.printWidth": 100
 }
