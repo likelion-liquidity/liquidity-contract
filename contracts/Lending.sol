@@ -37,7 +37,13 @@ contract Lending {
     function isNftWhiteList(address nftAddress) private returns (bool) {
         //todo : 해당 어드레스가 화이트리스트인지 체크
         //외부 ownerable 컨트랙트에서 화이트리스트를 가져와서 체크함
-        return true;
+        for (uint256 i = 0; i < whiteListedNftArray.length; i++) {
+            if (whiteListedNftArray[i] == nftAddress) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     //예치 및 대출 실행
