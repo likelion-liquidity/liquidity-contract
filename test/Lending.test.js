@@ -164,11 +164,13 @@ contract("3. 상환", async (accounts) => {
 
     describe("로직 검증", async () => {
         it("대출금을 전부 상환하면, NFT의 소유권을 가져옴", async () => {
+            await stableContract.approve(lendingContract.address, repayAmount);
             await lendingContract.repay(loanAmount, nftContract.address, tokenId);
             assert.equal(await nftContract.ownerOf(tokenId), owner);
         });
 
         it("대출금을 일부만 상환하면, 프로토콜이 NFT를 소유함", async () => {
+            await stableContract.approve(lendingContract.address, repayAmount);
             await lendingContract.repay(repayAmount, nftContract.address, tokenId);
             assert.equal(await nftContract.ownerOf(tokenId), lendingContract.address);
         });
@@ -177,8 +179,11 @@ contract("3. 상환", async (accounts) => {
             await stableContract.mint(owner, 1000);
             const beforeBalance = await stableContract.balanceOf(owner);
 
+            await stableContract.approve(lendingContract.address, repayAmount);
             await lendingContract.repay(repayAmount, nftContract.address, tokenId);
+
             const afterBalance = await stableContract.balanceOf(owner);
+
             assert.equal(beforeBalance - repayAmount, afterBalance);
         });
     });
