@@ -137,7 +137,9 @@ contract Lending {
         );
 
         //대출 상환
-        // stable.safeTransferFrom(msg.sender, address(this), repayAmount);
+        stable = KIP7Token(stableTokenAddress);
+        stable.transferFrom(msg.sender, address(this), repayAmount);
+
         lendingStatus.loanAmount -= repayAmount;
 
         if (lendingStatus.loanAmount == 0) {
