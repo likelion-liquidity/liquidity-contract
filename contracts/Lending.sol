@@ -144,6 +144,7 @@ contract Lending {
         lendingStatus.loanAmount -= repayAmount;
 
         if (lendingStatus.loanAmount == 0) {
+            nft = KIP17Token(targetNftAddress);
             nft.safeTransferFrom(
                 address(this),
                 msg.sender,
