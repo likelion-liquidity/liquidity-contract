@@ -15,6 +15,11 @@ const prerequisite = async (accounts) => {
     let lendingContract = await Lending.new([nftContract.address], stableContract.address);
     let owner = accounts[0];
 
+    /* jjgob_20220207 start */
+    //@@Lending.sol에서 대출금액 만큼 그때그때 stable토큰을 발행하고 싶을때
+    // stableContract.addMinter(lendingContract.address);
+    /* jjgob_20220207 end   */
+
     return { lendingContract, nftContract, owner, stableContract, notWhiteListContract };
 };
 
@@ -22,12 +27,35 @@ contract("1. 대출", async (accounts) => {
     const tokenId = 0;
     const loanAmount = 100;
 
+    /* jjgob_20220207 start */
     describe("로직 검증", async () => {
         it("프로토콜에게 NFT의 소유권이 이전됨", async () => {
-            const { lendingContract, nftContract, owner } = await prerequisite(accounts);
+            const { lendingContract, nftContract, owner, stableContract } = await prerequisite(
+                accounts
+            );
+            //테스트를 위해 lendingContract.address한테 stable토큰 1000개를 발행해준다.
+            await stableContract.mint(lendingContract.address, 1000);
+            //테스트를 위해 owner한테 nft 1개를 발행해준다.
             await nftContract.mint(owner, tokenId);
+
+            //lendingContract.stakeAndBorrow에서의 nft 소유권 이전을 위해 approve
             await nftContract.approve(lendingContract.address, tokenId);
+
+            //address 확인
+            console.log("## owner           address : " + owner);
+            console.log("## lendingContract address : " + lendingContract.address);
+            //대출 실행 전 : nft의 소유자 확인 : owner
+            const beforeNftOwner = await await nftContract.ownerOf(tokenId);
+            console.log("## beforeNftOwner : " + beforeNftOwner);
+
+            //대출 실행 : lendingContract.stakeAndBorrow 기능 검증이 목적
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId);
+
+            //대출 실행 후 : nft의 소유자 확인 : nftContract.address
+            const afterNftOwner = await await nftContract.ownerOf(tokenId);
+            console.log("## afterNftOwner  : " + afterNftOwner);
+
+            //nft소유권이 owner에서 lendingContract.address로 이전 되었는지 검증
             assert.equal(await nftContract.ownerOf(tokenId), lendingContract.address);
         });
 
@@ -35,52 +63,79 @@ contract("1. 대출", async (accounts) => {
             const { lendingContract, nftContract, owner, stableContract } = await prerequisite(
                 accounts
             );
+            //테스트를 위해 lendingContract.address한테 stable토큰 1000개를 발행해준다.
+            await stableContract.mint(lendingContract.address, 1000);
+            //테스트를 위해 owner한테 nft 1개를 발행해준다.
             await nftContract.mint(owner, tokenId);
+
+            //lendingContract.stakeAndBorrow에서의 nft 소유권 이전을 위해 approve
             await nftContract.approve(lendingContract.address, tokenId);
+
+            //대출 실행 전 : owner가 소유한 stable토큰의 잔액 확인
+            const beforeBalanceOfOwner = await stableContract.balanceOf(owner);
+            console.log("## beforeBalanceOfOwner   : " + beforeBalanceOfOwner);
+            //대출 실행 전 : lendingContract.address가 소유한 stable토큰의 잔액 확인
+            const beforeBalanceOfLending = await stableContract.balanceOf(lendingContract.address);
+            console.log("## beforeBalanceOfLending : " + beforeBalanceOfLending);
+
+            //대출 실행 : lendingContract.stakeAndBorrow 기능 검증이 목적
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId);
-            assert.equal(await stableContract.balanceOf(owner), loanAmount);
+
+            //대출 실행 후 : owner가 소유한 stable토큰의 잔액 확인
+            const afterBalanceOfOwner = await stableContract.balanceOf(owner);
+            console.log("## afterBalanceOfOwner    : " + afterBalanceOfOwner);
+            //대출 실행 후 : lendingContract.address가 소유한 stable토큰의 잔액 확인
+            const afterBalanceOfLending = await stableContract.balanceOf(lendingContract.address);
+            console.log("## afterBalanceOfLending  : " + afterBalanceOfLending);
+
+            //stable토큰이 대출금액만큼 owner한테 전송되었는지 검증
+            //owner의 대출 후 잔액 - owner의 대출 후 잔액 == loanAmount 인지 검증(loanAmount만큼 잔액이 늘어남)
+            assert.equal(afterBalanceOfOwner - beforeBalanceOfOwner, loanAmount);
+            //lendingContract.address의 대출 후 잔액 - lendingContract.address의 대출 후 잔액 == loanAmount 인지 검증(loanAmount만큼 잔액이 줄어듬)
+            // assert.equal(beforeBalanceOfLending - afterBalanceOfLending, loanAmount);
         });
     });
+    /* jjgob_20220207 end   */
 
-    describe("예외처리 검증", async () => {
-        it("대출을 신청한 NFT의 소유권을 가지고 있지않음", async () => {
-            const { lendingContract, nftContract, owner } = await prerequisite(accounts);
-            await nftContract.mint(owner, tokenId);
-            await nftContract.approve(lendingContract.address, tokenId);
+    // describe("예외처리 검증", async () => {
+    //     it("대출을 신청한 NFT의 소유권을 가지고 있지않음", async () => {
+    //         const { lendingContract, nftContract, owner } = await prerequisite(accounts);
+    //         await nftContract.mint(owner, tokenId);
+    //         await nftContract.approve(lendingContract.address, tokenId);
 
-            await nftContract.mint(accounts[1], tokenId + 1, { from: accounts[1] });
-            await nftContract.approve(lendingContract.address, tokenId + 1, { from: accounts[1] });
+    //         await nftContract.mint(accounts[1], tokenId + 1, { from: accounts[1] });
+    //         await nftContract.approve(lendingContract.address, tokenId + 1, { from: accounts[1] });
 
-            await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId + 1)
-                .should.be.rejected;
-        });
+    //         await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId + 1)
+    //             .should.be.rejected;
+    //     });
 
-        it("화이트 리스트가 아닌 NFT로 대출을 신청함", async () => {
-            const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
-                await prerequisite(accounts);
+    //     it("화이트 리스트가 아닌 NFT로 대출을 신청함", async () => {
+    //         const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
+    //             await prerequisite(accounts);
 
-            await notWhiteListContract.mint(owner, tokenId);
-            await notWhiteListContract.approve(lendingContract.address, tokenId);
-            await lendingContract.stakeAndBorrow(loanAmount, notWhiteListContract.address, tokenId)
-                .should.be.rejected;
-        });
-        it("KIP17이 아닌 Contract로 대출을 신청함", async () => {
-            const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
-                await prerequisite(accounts);
+    //         await notWhiteListContract.mint(owner, tokenId);
+    //         await notWhiteListContract.approve(lendingContract.address, tokenId);
+    //         await lendingContract.stakeAndBorrow(loanAmount, notWhiteListContract.address, tokenId)
+    //             .should.be.rejected;
+    //     });
+    //     it("KIP17이 아닌 Contract로 대출을 신청함", async () => {
+    //         const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
+    //             await prerequisite(accounts);
 
-            await lendingContract.stakeAndBorrow(loanAmount, stableContract.address, tokenId).should
-                .be.rejected;
-        });
-        it("발행되지않은 NFT token으로 대출을 신청함", async () => {
-            const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
-                await prerequisite(accounts);
+    //         await lendingContract.stakeAndBorrow(loanAmount, stableContract.address, tokenId).should
+    //             .be.rejected;
+    //     });
+    //     it("발행되지않은 NFT token으로 대출을 신청함", async () => {
+    //         const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
+    //             await prerequisite(accounts);
 
-            await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId).should.be
-                .rejected;
-        });
+    //         await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId).should.be
+    //             .rejected;
+    //     });
 
-        it.skip("NFT로 빌릴 수 있는 한도보다 높게 대출을 신청함", async () => {});
-    });
+    //     it.skip("NFT로 빌릴 수 있는 한도보다 높게 대출을 신청함", async () => {});
+    // });
 });
 
 contract("2. 청산", async (accounts) => {
