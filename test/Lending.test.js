@@ -10,12 +10,9 @@ require("chai").use(require("chai-as-promised")).should();
 const prerequisite = async (accounts) => {
     let nftContract = await KIP17Token.new("WhiteListed", "WL");
     let notWhiteListContract = await KIP17Token.new("NotWhiteListed", "NWL");
-    let stableContract = await KIP7Token.new("StableToken", "Stable", 18, 1000);
-
-    let lendingContract = await Lending.new([nftContract.address], stableContract.address);
+    let lendingContract = await Lending.new([nftContract.address], 1000);
     let owner = accounts[0];
-
-    return { lendingContract, nftContract, owner, stableContract, notWhiteListContract };
+    return { lendingContract, nftContract, owner, notWhiteListContract };
 };
 
 contract("1. 대출", async (accounts) => {
@@ -32,13 +29,16 @@ contract("1. 대출", async (accounts) => {
         });
 
         it("대출자에게 요청한 만큼의 토큰이 전송됨", async () => {
-            const { lendingContract, nftContract, owner, stableContract } = await prerequisite(
-                accounts
-            );
+            const { lendingContract, nftContract, owner } = await prerequisite(accounts);
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
-            await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId);
-            assert.equal(await stableContract.balanceOf(owner), loanAmount);
+
+            assert.equal(
+                (await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId))[
+                    "logs"
+                ][0]["args"]["bal"],
+                loanAmount
+            );
         });
     });
 
@@ -56,7 +56,7 @@ contract("1. 대출", async (accounts) => {
         });
 
         it("화이트 리스트가 아닌 NFT로 대출을 신청함", async () => {
-            const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
+            const { lendingContract, nftContract, owner, notWhiteListContract } =
                 await prerequisite(accounts);
 
             await notWhiteListContract.mint(owner, tokenId);
@@ -65,14 +65,13 @@ contract("1. 대출", async (accounts) => {
                 .should.be.rejected;
         });
         it("KIP17이 아닌 Contract로 대출을 신청함", async () => {
-            const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
+            const { lendingContract, nftContract, owner, notWhiteListContract } =
                 await prerequisite(accounts);
 
-            await lendingContract.stakeAndBorrow(loanAmount, stableContract.address, tokenId).should
-                .be.rejected;
+            await lendingContract.stakeAndBorrow(loanAmount.address, tokenId).should.be.rejected;
         });
         it("발행되지않은 NFT token으로 대출을 신청함", async () => {
-            const { lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
+            const { lendingContract, nftContract, owner, notWhiteListContract } =
                 await prerequisite(accounts);
 
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId).should.be
@@ -89,12 +88,12 @@ contract("2. 청산", async (accounts) => {
     let nftContract;
     let lendingContract;
     let owner;
-    let stableContract;
     let notWhiteListContract;
 
     beforeEach(async () => {
-        ({ lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
-            await prerequisite(accounts));
+        ({ lendingContract, nftContract, owner, notWhiteListContract } = await prerequisite(
+            accounts
+        ));
         await nftContract.mint(owner, tokenId);
         await nftContract.approve(lendingContract.address, tokenId);
         await lendingContract.stakeAndBorrow(amount, nftContract.address, tokenId);
@@ -135,15 +134,15 @@ contract("3. 상환", async (accounts) => {
     let nftContract;
     let lendingContract;
     let owner;
-    let stableContract;
     let notWhiteListContract;
     const tokenId = 0;
     const loanAmount = 100;
     const repayAmount = 99;
 
     beforeEach(async () => {
-        ({ lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
-            await prerequisite(accounts));
+        ({ lendingContract, nftContract, owner, notWhiteListContract } = await prerequisite(
+            accounts
+        ));
         await nftContract.mint(owner, tokenId);
         await nftContract.approve(lendingContract.address, tokenId);
         await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId);
@@ -161,11 +160,7 @@ contract("3. 상환", async (accounts) => {
         });
 
         it("대출금을 상환하면, 상환한 갯수만큼 소유 토큰 갯수가 줄어야함", async () => {
-            await stableContract.mint(owner, 1000);
-            const beforeBalance = await stableContract.balanceOf(owner);
-
             await lendingContract.repay(repayAmount, nftContract.address, tokenId);
-            const afterBalance = await stableContract.balanceOf(owner);
             assert.equal(beforeBalance - repayAmount, afterBalance);
         });
     });

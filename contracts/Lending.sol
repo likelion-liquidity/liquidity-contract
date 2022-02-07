@@ -9,11 +9,12 @@ contract Lending {
     KIP7Token stable;
 
     //token
-    address stableTokenAddress;
     address[] whiteListedNftArray;
 
     //address
     address liquidationAccountAddress;
+
+    event balLog(uint256 bal);
 
     struct NftLendingStatus {
         uint256 nftTokenId;
@@ -25,19 +26,23 @@ contract Lending {
     //mapping(account => mapping(nftAddress => NftStatus))
     mapping(address => mapping(address => NftLendingStatus[])) public stakedNft;
 
-    constructor(
-        address[] memory _whiteListedNftArray,
-        address _stableTokenAddress
-    ) public {
+    constructor(address[] memory _whiteListedNftArray, uint256 initialSupply)
+        public
+    {
         whiteListedNftArray = _whiteListedNftArray;
-        stableTokenAddress = _stableTokenAddress;
+        stable = new KIP7Token("StableToken", "Stable", 18, initialSupply);
     }
 
     //NFT 화이트리스트 체크
     function isNftWhiteList(address nftAddress) private returns (bool) {
         //todo : 해당 어드레스가 화이트리스트인지 체크
         //외부 ownerable 컨트랙트에서 화이트리스트를 가져와서 체크함
-        return true;
+        for (uint256 i = 0; i < whiteListedNftArray.length; i++) {
+            if (whiteListedNftArray[i] == nftAddress) {
+                return true;
+            }
+        }
+        return false;
     }
 
     //예치 및 대출 실행
@@ -55,7 +60,27 @@ contract Lending {
 
         //대출 실행
         //todo : require(NFT 가치 * 0.8 >= 대출금)
+
         //todo : KIP7 발행 후, 해당 KIP7 토큰을 tranfer
+
+        // 초기 lending contract 밸런스 체크
+        require(
+            stable.balanceOf(address(this)) == 1000,
+            "lending contract balance != 1000"
+        );
+
+        // 초기 owner 밸런스 체크
+        require(stable.balanceOf(msg.sender) == 0, "owner balance != 0");
+
+        // 토큰 전송
+        stable.approve(address(this), loanAmount);
+        stable.safeTransferFrom(address(this), msg.sender, loanAmount);
+
+        // 전송 후 owner 밸런스 체크
+        require(
+            stable.balanceOf(msg.sender) == loanAmount,
+            "owner balance != loanAmount"
+        );
 
         //소유자 및 청산 유무 플래그 기록
         stakedNft[msg.sender][stakeNftAddress].push(
@@ -64,6 +89,8 @@ contract Lending {
 
         //대출 실행 이후, 이율 부과
         //todo : block.timestamp를 이용하여, 시간에 따른 이율 부과
+
+        emit balLog(stable.balanceOf(msg.sender));
     }
 
     //청산
