@@ -60,15 +60,9 @@ contract Lending {
         nft.safeTransferFrom(msg.sender, address(this), stakeNftId);
 
         //대출 실행
-        //todo : require(NFT 가치 * 0.8 >= 대출금)
-        //todo : KIP7 발행 후, 해당 KIP7 토큰을 tranfer
-
-        /* jjgob_20220207 start */
         stable = KIP7Token(stableTokenAddress);
-        // stable.mint(address(this), loanAmount); //@@Lending.sol에서 대출금액 만큼 그때그때 stable토큰을 발행하고 싶을때
         stable.approve(msg.sender, loanAmount);
         stable.transfer(msg.sender, loanAmount);
-        /* jjgob_20220207 end   */
 
         //소유자 및 청산 유무 플래그 기록
         stakedNft[msg.sender][stakeNftAddress].push(
