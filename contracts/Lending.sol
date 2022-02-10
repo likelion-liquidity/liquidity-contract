@@ -60,8 +60,9 @@ contract Lending {
         nft.safeTransferFrom(msg.sender, address(this), stakeNftId);
 
         //대출 실행
-        //todo : require(NFT 가치 * 0.8 >= 대출금)
-        //todo : KIP7 발행 후, 해당 KIP7 토큰을 tranfer
+        stable = KIP7Token(stableTokenAddress);
+        stable.approve(msg.sender, loanAmount);
+        stable.transfer(msg.sender, loanAmount);
 
         //소유자 및 청산 유무 플래그 기록
         stakedNft[msg.sender][stakeNftAddress].push(

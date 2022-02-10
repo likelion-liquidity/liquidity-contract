@@ -15,6 +15,8 @@ const prerequisite = async (accounts) => {
     let lendingContract = await Lending.new([nftContract.address], stableContract.address);
     let owner = accounts[0];
 
+    await stableContract.mint(lendingContract.address, 1000);
+
     return { lendingContract, nftContract, owner, stableContract, notWhiteListContract };
 };
 
@@ -25,9 +27,12 @@ contract("1. 대출", async (accounts) => {
     describe("로직 검증", async () => {
         it("프로토콜에게 NFT의 소유권이 이전됨", async () => {
             const { lendingContract, nftContract, owner } = await prerequisite(accounts);
+
             await nftContract.mint(owner, tokenId);
+
             await nftContract.approve(lendingContract.address, tokenId);
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId);
+
             assert.equal(await nftContract.ownerOf(tokenId), lendingContract.address);
         });
 
@@ -35,10 +40,18 @@ contract("1. 대출", async (accounts) => {
             const { lendingContract, nftContract, owner, stableContract } = await prerequisite(
                 accounts
             );
+
             await nftContract.mint(owner, tokenId);
+
             await nftContract.approve(lendingContract.address, tokenId);
+
+            const beforeBalanceOfOwner = await stableContract.balanceOf(owner);
+
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId);
-            assert.equal(await stableContract.balanceOf(owner), loanAmount);
+
+            const afterBalanceOfOwner = await stableContract.balanceOf(owner);
+
+            assert.equal(afterBalanceOfOwner - beforeBalanceOfOwner, loanAmount);
         });
     });
 
