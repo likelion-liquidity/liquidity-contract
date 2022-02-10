@@ -2,15 +2,16 @@ pragma solidity ^0.5.0;
 
 import "@klaytn/contracts/token/KIP7/KIP7Token.sol";
 import "@klaytn/contracts/token/KIP17/KIP17Token.sol";
+import "./DataHolder.sol";
 
 contract Lending {
     //contract
     KIP17Token nft;
     KIP7Token stable;
+    DataHolder dataHolder;
 
     //token
     address stableTokenAddress;
-    address[] whiteListedNftArray;
 
     //address
     address liquidationAccountAddress;
@@ -25,23 +26,16 @@ contract Lending {
     //mapping(account => mapping(nftAddress => NftStatus))
     mapping(address => mapping(address => NftLendingStatus[])) public stakedNft;
 
-    //mapping(contract => isWhiteList)
-    mapping(address => bool) public whiteListedNft;
-
-    constructor(
-        address[] memory _whiteListedNftArray,
-        address _stableTokenAddress
-    ) public {
-        for (uint256 i = 0; i < _whiteListedNftArray.length; i++) {
-            whiteListedNft[_whiteListedNftArray[i]] = true;
-        }
+    constructor(address _dataHolderAddress, address _stableTokenAddress)
+        public
+    {
+        dataHolder = DataHolder(_dataHolderAddress);
         stableTokenAddress = _stableTokenAddress;
     }
 
     //NFT 화이트리스트 체크
     function isNftWhiteList(address nftAddress) private returns (bool) {
-        //외부 ownerable 컨트랙트에서 화이트리스트를 가져와서 체크함
-        return whiteListedNft[nftAddress];
+        return dataHolder.isWhiteList(nftAddress);
     }
 
     //예치 및 대출 실행

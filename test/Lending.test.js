@@ -3,6 +3,7 @@ const { assert } = require("chai");
 const Lending = artifacts.require("./contract/Lending.sol");
 const KIP7Token = artifacts.require("./node_modules/@klaytn/contracts/token/KIP7/KIP7Token.sol");
 const KIP17Token = artifacts.require("./node_modules/@klaytn/contracts/token/KIP17/KIP17Token.sol");
+const DataHolder = artifacts.require("./contract/DataHolder.sol");
 
 require("chai").use(require("chai-as-promised")).should();
 
@@ -10,8 +11,10 @@ const prerequisite = async (accounts) => {
     let nftContract = await KIP17Token.new("WhiteListed", "WL");
     let notWhiteListContract = await KIP17Token.new("NotWhiteListed", "NWL");
     let stableContract = await KIP7Token.new("StableToken", "Stable", 18, 1000);
+    let dataHolderContract = await DataHolder.new();
+    dataHolderContract.addWhiteList(nftContract.address);
 
-    let lendingContract = await Lending.new([nftContract.address], stableContract.address);
+    let lendingContract = await Lending.new(dataHolderContract.address, stableContract.address);
     let owner = accounts[0];
 
     await stableContract.mint(lendingContract.address, 1000);
