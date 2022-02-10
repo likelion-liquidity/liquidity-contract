@@ -52,9 +52,10 @@ contract Lending {
         address stakeNftAddress,
         uint256 stakeNftId
     ) public {
-        //해당 어드레스가 화이트리스트인지 체크
         require(isNftWhiteList(stakeNftAddress) == true, "NFT isn't WL");
+
         nft = KIP17Token(stakeNftAddress);
+        require(nft.ownerOf(stakeNftId) == msg.sender, "NFT isn't yours");
 
         //소유권 이전 (호출 전, kas 내에서 approve()를 호출하여, 해당 nft가 contract를 컨트롤할 수 있도록 해야한다)
         nft.safeTransferFrom(msg.sender, address(this), stakeNftId);
@@ -62,7 +63,7 @@ contract Lending {
         //대출 실행
         stable = KIP7Token(stableTokenAddress);
         stable.approve(msg.sender, loanAmount);
-        stable.transfer(msg.sender, loanAmount);
+        stable.safeTransfer(msg.sender, loanAmount);
 
         //소유자 및 청산 유무 플래그 기록
         stakedNft[msg.sender][stakeNftAddress].push(
@@ -139,7 +140,7 @@ contract Lending {
 
         //대출 상환
         stable = KIP7Token(stableTokenAddress);
-        stable.transferFrom(msg.sender, address(this), repayAmount);
+        stable.safeTransferFrom(msg.sender, address(this), repayAmount);
 
         lendingStatus.loanAmount -= repayAmount;
 
@@ -153,7 +154,16 @@ contract Lending {
         }
     }
 
-    //컨트랙트가 KIP17를 소유할 수 있도록
+    function onKIP7Received(
+        address sender,
+        address recipient,
+        uint256 amount,
+        bytes memory _data
+    ) public returns (bytes4) {
+        return
+            bytes4(keccak256("onKIP7Received(address,address,uint256,bytes)"));
+    }
+
     function onKIP17Received(
         address operator,
         address from,

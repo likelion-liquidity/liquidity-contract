@@ -1,4 +1,3 @@
-const { NftContractDetail } = require("caver-js-ext-kas/src/rest-client");
 const { assert } = require("chai");
 
 const Lending = artifacts.require("./contract/Lending.sol");
@@ -61,7 +60,7 @@ contract("1. 대출", async (accounts) => {
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
 
-            await nftContract.mint(accounts[1], tokenId + 1, { from: accounts[1] });
+            await nftContract.mint(accounts[1], tokenId + 1);
             await nftContract.approve(lendingContract.address, tokenId + 1, { from: accounts[1] });
 
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId + 1)
@@ -164,7 +163,7 @@ contract("3. 상환", async (accounts) => {
 
     describe("로직 검증", async () => {
         it("대출금을 전부 상환하면, NFT의 소유권을 가져옴", async () => {
-            await stableContract.approve(lendingContract.address, repayAmount);
+            await stableContract.approve(lendingContract.address, loanAmount);
             await lendingContract.repay(loanAmount, nftContract.address, tokenId);
             assert.equal(await nftContract.ownerOf(tokenId), owner);
         });
