@@ -25,25 +25,23 @@ contract Lending {
     //mapping(account => mapping(nftAddress => NftStatus))
     mapping(address => mapping(address => NftLendingStatus[])) public stakedNft;
 
+    //mapping(contract => isWhiteList)
+    mapping(address => bool) public whiteListedNft;
+
     constructor(
         address[] memory _whiteListedNftArray,
         address _stableTokenAddress
     ) public {
-        whiteListedNftArray = _whiteListedNftArray;
+        for (uint256 i = 0; i < _whiteListedNftArray.length; i++) {
+            whiteListedNft[_whiteListedNftArray[i]] = true;
+        }
         stableTokenAddress = _stableTokenAddress;
     }
 
     //NFT 화이트리스트 체크
     function isNftWhiteList(address nftAddress) private returns (bool) {
-        //todo : 해당 어드레스가 화이트리스트인지 체크
         //외부 ownerable 컨트랙트에서 화이트리스트를 가져와서 체크함
-        for (uint256 i = 0; i < whiteListedNftArray.length; i++) {
-            if (whiteListedNftArray[i] == nftAddress) {
-                return true;
-            }
-        }
-
-        return false;
+        return whiteListedNft[nftAddress];
     }
 
     //예치 및 대출 실행
