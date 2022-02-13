@@ -15,8 +15,9 @@ const prerequisite = async (accounts) => {
 
     let dataHolderContract = await DataHolder.new();
     let nftContract = await KIP17Token.new("WhiteListed", "WL");
+    let notWhiteListContract = await KIP17Token.new("NotWhiteListed", "NWL");
 
-    return { dataHolderContract, nftContract, creator, owner, hacker };
+    return { dataHolderContract, nftContract, creator, owner, hacker, notWhiteListContract };
 };
 contract("화이트 리스트 추가", async (accounts) => {
     const tokenId = 0;
@@ -92,12 +93,48 @@ contract("화이트 리스트 삭제", async (accounts) => {
     });
 });
 
-contract("바닥가 계산", async (accounts) => {
+contract("바닥가 갱신", async (accounts) => {
+    const tokenId = 0;
+    const floorPrice = 100;
+    let dataHolderContract;
+    let nftContract;
+    let notWhiteListContract;
+    let creatror;
+    let owner;
+    let hacker;
+
+    beforeEach(async () => {
+        ({ dataHolderContract, nftContract, creator, owner, hacker, notWhiteListContract } =
+            await prerequisite(accounts));
+        await nftContract.mint(owner, tokenId);
+        await dataHolderContract.addWhiteList(nftContract.address);
+    });
+
     describe("로직 검증", async () => {
-        it.skip("", async () => {});
+        it("바닥가를 갱신하면, 해당 nft의 바닥가가 변경되어야함", async () => {
+            await dataHolderContract.setFloorPrice(nftContract.address, floorPrice);
+            const expectedfloorPrice = await dataHolderContract.getFloorPrice(nftContract.address);
+            assert.equal(floorPrice, expectedfloorPrice);
+        });
+
+        it("바닥가를 갱신하면, 해당 nft로 빌릴 수 있는 금액도 변경되어야함", async () => {
+            await dataHolderContract.setFloorPrice(nftContract.address, floorPrice);
+            const availableLoanAmount = await dataHolderContract.getAvailableLoanAmount(
+                nftContract.address
+            );
+            assert.equal(floorPrice * 0.8, availableLoanAmount);
+        });
     });
     describe("예외처리 검증", async () => {
-        it.skip("", async () => {});
+        it("화이트리스트가 아닌 NFT Collection은 바닥가를 변경할 수 없음", async () => {
+            await dataHolderContract.setFloorPrice(notWhiteListContract.address, floorPrice).should
+                .be.rejected;
+        });
+        it("owner가 아닌 계정으로 호출함", async () => {
+            await dataHolderContract.setFloorPrice(nftContract.address, floorPrice, {
+                from: hacker,
+            }).should.be.rejected;
+        });
     });
 });
 

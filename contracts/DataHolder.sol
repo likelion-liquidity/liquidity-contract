@@ -25,11 +25,11 @@ contract DataHolder is Ownable {
         whiteListNftData[targetNftAddress].activated = true;
     }
 
-    function removeWhiteList(address targetNftAddress) public onlyOwner {
-        require(
-            whiteListNftData[targetNftAddress].activated == true,
-            "not whitelist"
-        );
+    function removeWhiteList(address targetNftAddress)
+        public
+        onlyOwner
+        onlyWhiteList(targetNftAddress)
+    {
         _removeWhiteList(targetNftAddress);
         whiteListNftData[targetNftAddress].activated = false;
     }
@@ -46,37 +46,60 @@ contract DataHolder is Ownable {
         whiteListNftList.pop();
     }
 
-    function setFloorPrice(address targetNftAddres, uint256 floorPrice)
+    function setFloorPrice(address targetNftAddress, uint256 floorPrice)
         public
         onlyOwner
-    {}
+        onlyWhiteList(targetNftAddress)
+    {
+        whiteListNftData[targetNftAddress].floorPrice = floorPrice;
+        setAvailableLoanAmount(
+            targetNftAddress,
+            _calcAvailableLoanAmount(floorPrice)
+        );
+    }
 
-    function setAvaliableLoanAmount(
-        address tragetNftAddress,
-        uint256 avaliableLoanAmount
-    ) public onlyOwner {}
+    function setAvailableLoanAmount(
+        address targetNftAddress,
+        uint256 availableLoanAmount
+    ) public onlyOwner {
+        whiteListNftData[targetNftAddress]
+            .availableLoanAmount = availableLoanAmount;
+    }
 
-    function calcAvaliableLoanAmount(uint256 floorPrice)
-        public
+    function _calcAvailableLoanAmount(uint256 floorPrice)
+        private
         returns (uint256)
-    {}
+    {
+        return (floorPrice * 80) / 100;
+    }
 
     function getFloorPrice(address targetNftAddress)
         public
         view
         returns (uint256)
-    {}
+    {
+        return whiteListNftData[targetNftAddress].floorPrice;
+    }
 
-    function getAvaliableLoanAmount(address targetNftAddress)
+    function getAvailableLoanAmount(address targetNftAddress)
         public
         view
         returns (uint256)
-    {}
+    {
+        return whiteListNftData[targetNftAddress].availableLoanAmount;
+    }
 
     function isWhiteList(address targetNftAddress) public view returns (bool) {
         return whiteListNftData[targetNftAddress].activated == true;
     }
 
+    modifier onlyWhiteList(address targetNftAddress) {
+        require(
+            whiteListNftData[targetNftAddress].activated == true,
+            "not whitelist"
+        );
+        _;
+    }
     //화이트 리스트 NFT 리스트
     //ㄴ 새로운 화이트 리스트를 추가할 수 있어야함 (onlyOwner)
     //ㄴ 화이트 리스트에서 삭제할 수 있어야함 (onlyOwner)
