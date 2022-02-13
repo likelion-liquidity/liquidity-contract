@@ -55,11 +55,16 @@ contract Lending {
         nft = KIP17Token(stakeNftAddress);
         require(nft.ownerOf(stakeNftId) == msg.sender, "NFT isn't yours");
 
+        stable = KIP7Token(stableTokenAddress);
+        require(
+            stable.balanceOf(address(this)) >= loanAmount,
+            "Balance isn't enough"
+        );
+
         //소유권 이전 (호출 전, kas 내에서 approve()를 호출하여, 해당 nft가 contract를 컨트롤할 수 있도록 해야한다)
         nft.safeTransferFrom(msg.sender, address(this), stakeNftId);
 
         //대출 실행
-        stable = KIP7Token(stableTokenAddress);
         stable.approve(msg.sender, loanAmount);
         stable.safeTransfer(msg.sender, loanAmount);
 
