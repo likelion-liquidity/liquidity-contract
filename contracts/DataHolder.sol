@@ -1,4 +1,5 @@
 pragma solidity ^0.5.0;
+pragma experimental ABIEncoderV2;
 
 import "@klaytn/contracts/token/KIP7/KIP7Token.sol";
 import "@klaytn/contracts/token/KIP17/KIP17Token.sol";
@@ -12,23 +13,26 @@ contract DataHolder is Ownable {
         uint256 floorPrice;
         uint256 availableLoanAmount;
         uint256 maxLtv;
+        uint256 liqLtv;
         uint256 nftKlayPrice;
     }
 
     address[] whiteListNftList;
     mapping(address => NftData) whiteListNftData;
 
-    function addWhiteList(address targetNftAddress, uint256 _maxLtv)
-        public
-        onlyOwner
-    {
+    function addWhiteList(
+        address targetNftAddress,
+        uint256 _maxLtv,
+        uint256 _liqLtv
+    ) public onlyOwner {
         require(
             whiteListNftData[targetNftAddress].activated == false,
             "already whitelist"
         );
         whiteListNftList.push(targetNftAddress);
         whiteListNftData[targetNftAddress].activated = true;
-        setLTV(targetNftAddress, _maxLtv);
+        setMaxLtv(targetNftAddress, _maxLtv);
+        setLiqLtv(targetNftAddress, _liqLtv);
     }
 
     function removeWhiteList(address targetNftAddress)
@@ -74,13 +78,25 @@ contract DataHolder is Ownable {
             .availableLoanAmount = availableLoanAmount;
     }
 
-    function setLTV(address targetNftAddress, uint256 _maxLtv)
+    function setMaxLtv(address targetNftAddress, uint256 _maxLtv)
         public
         onlyOwner
         onlyWhiteList(targetNftAddress)
     {
         require(_maxLtv >= 0 && _maxLtv <= 100, "invalid value arange");
         whiteListNftData[targetNftAddress].maxLtv = _maxLtv;
+    }
+
+    function setLiqLtv(address targetNftAddress, uint256 _liqLtv)
+        public
+        onlyOwner
+        onlyWhiteList(targetNftAddress)
+    {
+        require(
+            _liqLtv > whiteListNftData[targetNftAddress].maxLtv,
+            "liqLtv must be bigger than maxLtv"
+        );
+        whiteListNftData[targetNftAddress].liqLtv = _liqLtv;
     }
 
     function _calcAvailableLoanAmount(
@@ -106,12 +122,27 @@ contract DataHolder is Ownable {
         return whiteListNftData[targetNftAddress].availableLoanAmount;
     }
 
-    function getLTV(address targetNftAddress) public view returns (uint256) {
+    function getMaxLtv(address targetNftAddress) public view returns (uint256) {
         return whiteListNftData[targetNftAddress].maxLtv;
+    }
+
+    function getLiqLtv(address targetNftAdrress) public view returns (uint256) {
+        return whiteListNftData[targetNftAdrress].liqLtv;
     }
 
     function isWhiteList(address targetNftAddress) public view returns (bool) {
         return whiteListNftData[targetNftAddress].activated == true;
+    }
+
+    function getWhiteListNftList() public view returns (address[] memory) {
+        return whiteListNftList;
+    }
+
+    function getNftData(address targetNftAddress)
+        public
+        returns (NftData memory)
+    {
+        return whiteListNftData[targetNftAddress];
     }
 
     modifier onlyWhiteList(address targetNftAddress) {
