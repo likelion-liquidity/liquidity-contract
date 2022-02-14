@@ -21,6 +21,7 @@ const prerequisite = async (accounts) => {
 };
 contract("화이트 리스트 추가", async (accounts) => {
     const tokenId = 0;
+    const ltv = 0;
 
     describe("로직 검증", async () => {
         it("화이트리스트를 추가하면, 화이트리스트가 등록되어야함", async () => {
@@ -28,7 +29,7 @@ contract("화이트 리스트 추가", async (accounts) => {
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address);
+            await dataHolderContract.addWhiteList(nftContract.address, ltv);
             const isWhiteList = await dataHolderContract.isWhiteList(nftContract.address, {
                 from: creator,
             });
@@ -37,13 +38,28 @@ contract("화이트 리스트 추가", async (accounts) => {
     });
 
     describe("예외처리 검증", async () => {
+        it("LTV는 100을 넘을 수 없다.", async () => {
+            const { dataHolderContract, nftContract, creator, owner, hacker } = await prerequisite(
+                accounts
+            );
+            await nftContract.mint(owner, tokenId);
+            await dataHolderContract.addWhiteList(nftContract.address, 101).should.be.rejected;
+        });
+        it("LTV는 0보다 낮아질 수 없다.", async () => {
+            const { dataHolderContract, nftContract, creator, owner, hacker } = await prerequisite(
+                accounts
+            );
+            await nftContract.mint(owner, tokenId);
+            await dataHolderContract.addWhiteList(nftContract.address, -1).should.be.rejected;
+        });
+
         it("이미 화이트리스트에 추가된 NFT Collection은 다시 추가할 수 없다.", async () => {
             const { dataHolderContract, nftContract, creator, owner, hacker } = await prerequisite(
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address);
-            await dataHolderContract.addWhiteList(nftContract.address).should.be.rejected;
+            await dataHolderContract.addWhiteList(nftContract.address, ltv);
+            await dataHolderContract.addWhiteList(nftContract.address, ltv).should.be.rejected;
         });
 
         it("owner가 아닌 계정으로 호출함", async () => {
@@ -59,6 +75,7 @@ contract("화이트 리스트 추가", async (accounts) => {
 
 contract("화이트 리스트 삭제", async (accounts) => {
     const tokenId = 0;
+    const ltv = 80;
     let dataHolderContract;
     let nftContract;
     let creatror;
@@ -70,7 +87,7 @@ contract("화이트 리스트 삭제", async (accounts) => {
             accounts
         ));
         await nftContract.mint(owner, tokenId);
-        await dataHolderContract.addWhiteList(nftContract.address);
+        await dataHolderContract.addWhiteList(nftContract.address, 80);
     });
     describe("로직 검증", async () => {
         it("화이트리스트를 삭제하면, 화이트리스트에서 삭제되어야함", async () => {
@@ -96,6 +113,7 @@ contract("화이트 리스트 삭제", async (accounts) => {
 contract("바닥가 갱신", async (accounts) => {
     const tokenId = 0;
     const floorPrice = 100;
+    const ltv = 80;
     let dataHolderContract;
     let nftContract;
     let notWhiteListContract;
@@ -107,7 +125,7 @@ contract("바닥가 갱신", async (accounts) => {
         ({ dataHolderContract, nftContract, creator, owner, hacker, notWhiteListContract } =
             await prerequisite(accounts));
         await nftContract.mint(owner, tokenId);
-        await dataHolderContract.addWhiteList(nftContract.address);
+        await dataHolderContract.addWhiteList(nftContract.address, ltv);
     });
 
     describe("로직 검증", async () => {
@@ -138,11 +156,44 @@ contract("바닥가 갱신", async (accounts) => {
     });
 });
 
-contract("", async (accounts) => {
+contract("LTV", async (accounts) => {
+    const ltv = 80;
+    const tokenId = 0;
+    let dataHolderContract;
+    let nftContract;
+    let notWhiteListContract;
+    let creator;
+    let owner;
+    let hacker;
+
+    beforeEach(async () => {
+        ({ dataHolderContract, nftContract, creator, owner, hacker, notWhiteListContract } =
+            await prerequisite(accounts));
+        await nftContract.mint(owner, tokenId);
+    });
     describe("로직 검증", async () => {
-        it.skip("", async () => {});
+        it("LTV를 변경하면, LTV가 변경되어야한다.", async () => {
+            await dataHolderContract.addWhiteList(nftContract.address, ltv);
+            await dataHolderContract.setLTV(nftContract.address, ltv + 10);
+            const expectedLtv = await dataHolderContract.getLTV(nftContract.address);
+            assert.equal(ltv + 10, expectedLtv);
+        });
     });
     describe("예외처리 검증", async () => {
-        it.skip("", async () => {});
+        it("LTV는 100을 넘을 수 없다.", async () => {
+            await dataHolderContract.addWhiteList(nftContract.address, ltv);
+            await dataHolderContract.setLTV(nftContract.address, 101).should.be.rejected;
+        });
+        it("LTV는 0보다 낮아질 수 없다.", async () => {
+            await dataHolderContract.addWhiteList(nftContract.address, ltv);
+            await dataHolderContract.setLTV(nftContract.address, -1).should.be.rejected;
+        });
+        it("화이트리스트가 아닌 NFT Collection에 LTV를 변경할 수 없다.", async () => {
+            await dataHolderContract.setLTV(notWhiteListContract.address, ltv).should.be.rejected;
+        });
+        it("owner가 아닌 계정으로 호출함", async () => {
+            await dataHolderContract.addWhiteList(nftContract.address, ltv);
+            await dataHolderContract.setLTV(ltv + 10, { from: hacker }).should.be.rejected;
+        });
     });
 });

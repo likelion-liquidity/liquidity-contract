@@ -9,13 +9,14 @@ require("chai").use(require("chai-as-promised")).should();
 
 const prerequisite = async (accounts) => {
     const floorPrice = 500;
+    const ltv = 80;
 
     let nftContract = await KIP17Token.new("WhiteListed", "WL");
     let notWhiteListContract = await KIP17Token.new("NotWhiteListed", "NWL");
     let stableContract = await KIP7Token.new("StableToken", "Stable", 18, 1000);
 
     let dataHolderContract = await DataHolder.new();
-    await dataHolderContract.addWhiteList(nftContract.address);
+    await dataHolderContract.addWhiteList(nftContract.address, 80);
     await dataHolderContract.setFloorPrice(nftContract.address, floorPrice);
 
     let lendingContract = await Lending.new(dataHolderContract.address, stableContract.address);
@@ -198,8 +199,6 @@ contract("2. 청산", async (accounts) => {
                 nftContract.address,
                 tokenId
             );
-
-            console.log(lendingStatus);
 
             assert.equal(await lendingStatus.hasOwnership, false);
         });
