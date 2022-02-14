@@ -2,18 +2,16 @@ pragma solidity ^0.5.0;
 
 import "@klaytn/contracts/token/KIP7/KIP7Token.sol";
 import "@klaytn/contracts/token/KIP17/KIP17Token.sol";
+import "./OpenZeppelin/Ownable.sol";
 import "./DataHolder.sol";
 
-contract Lending {
+contract Lending is Ownable {
     //contract
     KIP17Token nft;
     KIP7Token stable;
     DataHolder dataHolder;
 
-    //token
     address stableTokenAddress;
-
-    //address
     address liquidationAccountAddress;
 
     struct NftLendingStatus {
@@ -44,10 +42,13 @@ contract Lending {
         address stakeNftAddress,
         uint256 stakeNftId
     ) public {
-        require(isNftWhiteList(stakeNftAddress) == true, "NFT isn't WL");
-
         nft = KIP17Token(stakeNftAddress);
+        require(isNftWhiteList(stakeNftAddress) == true, "NFT isn't WL");
         require(nft.ownerOf(stakeNftId) == msg.sender, "NFT isn't yours");
+        require(
+            dataHolder.getAvailableLoanAmount(stakeNftAddress) >= loanAmount,
+            "too much loanAmount"
+        );
 
         stable = KIP7Token(stableTokenAddress);
         require(
