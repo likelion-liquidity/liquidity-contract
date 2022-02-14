@@ -11,18 +11,23 @@ contract DataHolder is Ownable {
         bool activated;
         uint256 floorPrice;
         uint256 availableLoanAmount;
+        uint256 maxLtv;
     }
 
     address[] whiteListNftList;
     mapping(address => NftData) whiteListNftData;
 
-    function addWhiteList(address targetNftAddress) public onlyOwner {
+    function addWhiteList(address targetNftAddress, uint256 _maxLtv)
+        public
+        onlyOwner
+    {
         require(
             whiteListNftData[targetNftAddress].activated == false,
             "already whitelist"
         );
         whiteListNftList.push(targetNftAddress);
         whiteListNftData[targetNftAddress].activated = true;
+        setLTV(targetNftAddress, _maxLtv);
     }
 
     function removeWhiteList(address targetNftAddress)
@@ -66,6 +71,15 @@ contract DataHolder is Ownable {
             .availableLoanAmount = availableLoanAmount;
     }
 
+    function setLTV(address targetNftAddress, uint256 _maxLtv)
+        public
+        onlyOwner
+        onlyWhiteList(targetNftAddress)
+    {
+        require(_maxLtv >= 0 && _maxLtv <= 100, "invalid value arange");
+        whiteListNftData[targetNftAddress].maxLtv = _maxLtv;
+    }
+
     function _calcAvailableLoanAmount(uint256 floorPrice)
         private
         returns (uint256)
@@ -87,6 +101,10 @@ contract DataHolder is Ownable {
         returns (uint256)
     {
         return whiteListNftData[targetNftAddress].availableLoanAmount;
+    }
+
+    function getLTV(address targetNftAddress) public view returns (uint256) {
+        return whiteListNftData[targetNftAddress].maxLtv;
     }
 
     function isWhiteList(address targetNftAddress) public view returns (bool) {
