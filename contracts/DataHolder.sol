@@ -12,6 +12,7 @@ contract DataHolder is Ownable {
         uint256 floorPrice;
         uint256 availableLoanAmount;
         uint256 maxLtv;
+        uint256 klayPrice;
     }
 
     address[] whiteListNftList;
@@ -118,6 +119,23 @@ contract DataHolder is Ownable {
         );
         _;
     }
+
+    function setKlayPrice(address targetNftAddress, uint256 klayPrice)
+        public
+        onlyOwner
+        onlyWhiteList(targetNftAddress)
+    {
+        whiteListNftData[targetNftAddress].klayPrice = klayPrice;
+    }
+
+    function getKlayPrice(address targetNftAddress)
+        public
+        view
+        returns (uint256)
+    {
+        return whiteListNftData[targetNftAddress].klayPrice;
+    }
+
     //화이트 리스트 NFT 리스트
     //ㄴ 새로운 화이트 리스트를 추가할 수 있어야함 (onlyOwner)
     //ㄴ 화이트 리스트에서 삭제할 수 있어야함 (onlyOwner)

@@ -1,4 +1,5 @@
 const { assert } = require("chai");
+const BigNumber = require("bignumber.js");
 
 require("chai").use(require("chai-as-promised")).should();
 
@@ -141,6 +142,14 @@ contract("바닥가 갱신", async (accounts) => {
                 nftContract.address
             );
             assert.equal(floorPrice * 0.8, availableLoanAmount);
+        });
+
+        it("NFT의 KLAY가격을 갱신하면, 해당 NFT의 KLAY가격이 변경되어야함", async () => {
+            const klayBase = new BigNumber(99.123456789);
+            const klayPrice = klayBase.times(new BigNumber(10 ** 18));
+            await dataHolderContract.setKlayPrice(nftContract.address, klayPrice);
+            const expectedKlayPrice = await dataHolderContract.getKlayPrice(nftContract.address);
+            assert.equal(klayPrice.toString(), expectedKlayPrice.toString());
         });
     });
     describe("예외처리 검증", async () => {
