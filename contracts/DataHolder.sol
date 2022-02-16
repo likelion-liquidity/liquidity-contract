@@ -12,7 +12,7 @@ contract DataHolder is Ownable {
         uint256 floorPrice;
         uint256 availableLoanAmount;
         uint256 maxLtv;
-        uint256 klayPrice;
+        uint256 nftKlayPrice;
     }
 
     address[] whiteListNftList;
@@ -52,15 +52,17 @@ contract DataHolder is Ownable {
         whiteListNftList.pop();
     }
 
-    function setFloorPrice(address targetNftAddress, uint256 floorPrice)
-        public
-        onlyOwner
-        onlyWhiteList(targetNftAddress)
-    {
+    function setFloorPrice(
+        address targetNftAddress,
+        uint256 nftKlayPrice,
+        uint256 klayExchangeRate
+    ) public onlyOwner onlyWhiteList(targetNftAddress) {
+        uint256 floorPrice = (nftKlayPrice * klayExchangeRate) / (10**18);
+        whiteListNftData[targetNftAddress].nftKlayPrice = nftKlayPrice;
         whiteListNftData[targetNftAddress].floorPrice = floorPrice;
         setAvailableLoanAmount(
             targetNftAddress,
-            _calcAvailableLoanAmount(floorPrice)
+            _calcAvailableLoanAmount(targetNftAddress, floorPrice)
         );
     }
 
@@ -81,11 +83,11 @@ contract DataHolder is Ownable {
         whiteListNftData[targetNftAddress].maxLtv = _maxLtv;
     }
 
-    function _calcAvailableLoanAmount(uint256 floorPrice)
-        private
-        returns (uint256)
-    {
-        return (floorPrice * 80) / 100;
+    function _calcAvailableLoanAmount(
+        address targetNftAddress,
+        uint256 floorPrice
+    ) private returns (uint256) {
+        return (floorPrice * whiteListNftData[targetNftAddress].maxLtv) / 100;
     }
 
     function getFloorPrice(address targetNftAddress)
@@ -120,20 +122,12 @@ contract DataHolder is Ownable {
         _;
     }
 
-    function setKlayPrice(address targetNftAddress, uint256 klayPrice)
-        public
-        onlyOwner
-        onlyWhiteList(targetNftAddress)
-    {
-        whiteListNftData[targetNftAddress].klayPrice = klayPrice;
-    }
-
-    function getKlayPrice(address targetNftAddress)
+    function getNftKlayPrice(address targetNftAddress)
         public
         view
         returns (uint256)
     {
-        return whiteListNftData[targetNftAddress].klayPrice;
+        return whiteListNftData[targetNftAddress].nftKlayPrice;
     }
 
     //화이트 리스트 NFT 리스트
