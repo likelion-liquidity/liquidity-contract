@@ -11,7 +11,8 @@ require("chai").use(require("chai-as-promised")).should();
 const prerequisite = async (accounts) => {
     const nftKlayPrice = new BigNumber(500).times(new BigNumber(10 ** 18));
     const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
-    const ltv = 80;
+    const maxLtv = 80;
+    const liqLtv = 90;
 
     let nftContract = await KIP17Token.new("WhiteListed", "WL");
     let notWhiteListContract = await KIP17Token.new("NotWhiteListed", "NWL");
@@ -23,7 +24,7 @@ const prerequisite = async (accounts) => {
     );
 
     let dataHolderContract = await DataHolder.new();
-    await dataHolderContract.addWhiteList(nftContract.address, 80);
+    await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
     await dataHolderContract.setFloorPrice(nftContract.address, nftKlayPrice, klayExchangeRate);
 
     let lendingContract = await Lending.new(dataHolderContract.address, stableContract.address);
@@ -200,12 +201,21 @@ contract("2. 청산", async (accounts) => {
     let nftContract;
     let lendingContract;
     let owner;
+    let hacker;
     let stableContract;
     let notWhiteListContract;
+    let dataHolderContract;
 
     beforeEach(async () => {
-        ({ lendingContract, nftContract, owner, stableContract, notWhiteListContract } =
-            await prerequisite(accounts));
+        ({
+            lendingContract,
+            nftContract,
+            owner,
+            hacker,
+            stableContract,
+            notWhiteListContract,
+            dataHolderContract,
+        } = await prerequisite(accounts));
         await nftContract.mint(owner, tokenId);
         await nftContract.approve(lendingContract.address, tokenId);
         await lendingContract.stakeAndBorrow(amount, nftContract.address, tokenId);
@@ -213,14 +223,47 @@ contract("2. 청산", async (accounts) => {
 
     describe("로직 검증", async () => {
         it("청산이 실행되면 해당 NFT를 반환할 권리를 박탈함", async () => {
-            await lendingContract.liquidate(nftContract.address, tokenId);
-            const lendingStatus = await lendingContract.stakedNft(
-                owner,
+            await lendingContract.liquidate(owner, nftContract.address, tokenId);
+            const isLiquidated = await lendingContract.isLiquidated(nftContract.address, tokenId);
+            console.log(isLiquidated);
+            assert.equal(isLiquidated, true);
+        });
+
+        it("데이터를 sync했을 때, 청산 조건에 부합하는 nft들은 청산됨", async () => {
+            const liquidatePrice = new BigNumber(880).times(new BigNumber(10 ** 18));
+            const nftKlayPrice = new BigNumber(1000).times(new BigNumber(10 ** 18));
+            const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
+            const loanAmount = new BigNumber(800).times(new BigNumber(10 ** 18));
+            await nftContract.mint(owner, tokenId + 1);
+            await nftContract.approve(lendingContract.address, tokenId + 1);
+
+            await dataHolderContract.setFloorPrice(
+                nftContract.address,
+                nftKlayPrice,
+                klayExchangeRate
+            ); //(800/1000) = 80%
+
+            await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId + 1);
+
+            await dataHolderContract.setFloorPrice(
+                nftContract.address,
+                liquidatePrice,
+                klayExchangeRate
+            ); //(800/880) = 90.9%
+
+            await lendingContract.sync();
+
+            const isToken1Liquidated = await lendingContract.isLiquidated(
                 nftContract.address,
                 tokenId
             );
+            const isToken2Liquidated = await lendingContract.isLiquidated(
+                nftContract.address,
+                tokenId + 1
+            );
 
-            assert.equal(await lendingStatus.hasOwnership, false);
+            assert.equal(isToken1Liquidated, false);
+            assert.equal(isToken2Liquidated, true);
         });
 
         it.skip("청산이 실행되면 해당 NFT를 청산 관리 Contract로 전송함", async () => {});
@@ -236,7 +279,10 @@ contract("2. 청산", async (accounts) => {
             await nftContract.mint(owner, tokenId + 1);
             await lendingContract.liquidate(nftContract.address, tokenId + 1).should.be.rejected;
         });
-        it.skip("관리자 Account 이외에 Account가 청산을 요청함", async () => {});
+        it("관리자 Account 이외에 Account가 청산을 요청함", async () => {
+            await lendingContract.liquidate(nftContract.address, tokenId, { from: hacker }).should
+                .be.rejected;
+        });
     });
 });
 
@@ -275,12 +321,9 @@ contract("3. 상환", async (accounts) => {
         it("대출금을 상환하면, 상환한 갯수만큼 소유 토큰 갯수가 줄어야함", async () => {
             await stableContract.mint(owner, new BigNumber(1000).times(new BigNumber(10 ** 18)));
             const beforeBalance = await stableContract.balanceOf(owner);
-
             await stableContract.approve(lendingContract.address, repayAmount);
             await lendingContract.repay(repayAmount, nftContract.address, tokenId);
-
             const afterBalance = await stableContract.balanceOf(owner);
-
             assert.equal(beforeBalance - repayAmount, afterBalance);
         });
     });
@@ -301,13 +344,7 @@ contract("3. 상환", async (accounts) => {
             await nftContract.approve(lendingContract.address, tokenId + 1);
             await lendingContract.stakeAndBorrow(loanAmount, nftContract.address, tokenId + 1);
 
-            await lendingContract.liquidate(nftContract.address, tokenId + 1);
-            const lendingStatus = await lendingContract.stakedNft(
-                owner,
-                nftContract.address,
-                tokenId + 1
-            );
-            console.log("## hasOwnership : " + (await lendingStatus.hasOwnership));
+            await lendingContract.liquidate(owner, nftContract.address, tokenId + 1);
 
             await lendingContract.repay(loanAmount, nftContract.address, tokenId + 1).should.be
                 .rejected;

@@ -1,4 +1,5 @@
 pragma solidity ^0.5.0;
+pragma experimental ABIEncoderV2;
 
 import "@klaytn/contracts/token/KIP7/KIP7Token.sol";
 import "@klaytn/contracts/token/KIP17/KIP17Token.sol";
@@ -13,6 +14,7 @@ contract Lending is Ownable {
 
     address stableTokenAddress;
     address liquidationAccountAddress;
+    address[] userList;
 
     struct NftLendingStatus {
         uint256 nftTokenId;
@@ -22,6 +24,7 @@ contract Lending is Ownable {
 
     //variable
     //mapping(account => mapping(nftAddress => NftStatus))
+    mapping(address => address[]) public stakedNftCollection;
     mapping(address => mapping(address => NftLendingStatus[])) public stakedNft;
 
     constructor(address _dataHolderAddress, address _stableTokenAddress)
@@ -68,39 +71,91 @@ contract Lending is Ownable {
             NftLendingStatus(stakeNftId, true, loanAmount)
         );
 
+        userList.push(msg.sender);
+
         //대출 실행 이후, 이율 부과
         //todo : block.timestamp를 이용하여, 시간에 따른 이율 부과
     }
 
-    //청산
-    function liquidate(address nftAddress, uint256 nftTokenId) public {
-        //todo : Manager Account에서만 호출할 수 있도록함
+    function sync() public onlyOwner {
+        _liquidate();
+    }
 
-        NftLendingStatus storage lendingStatus = getNftLendingStatus(
+    function _liquidate() private onlyOwner {
+        for (uint256 i = 0; i < userList.length; i++) {
+            for (
+                uint256 j = 0;
+                j < dataHolder.getWhiteListNftList().length;
+                j++
+            ) {
+                address userAddress = userList[i];
+                address nftAddress = dataHolder.getWhiteListNftList()[j];
+                DataHolder.NftData memory nftData = dataHolder.getNftData(
+                    nftAddress
+                );
+                NftLendingStatus[] storage nftLendingStatus = stakedNft[
+                    userAddress
+                ][nftAddress];
+                for (uint256 k = 0; k < nftLendingStatus.length; k++) {
+                    if (nftLendingStatus[k].hasOwnership == true) {
+                        uint256 currLtv = (nftLendingStatus[k].loanAmount /
+                            nftData.availableLoanAmount) *
+                            100 *
+                            1e18;
+                        if (currLtv >= nftData.liqLtv) {
+                            liquidate(
+                                userAddress,
+                                nftAddress,
+                                nftLendingStatus[k].nftTokenId
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    //청산
+    function liquidate(
+        address owner,
+        address nftAddress,
+        uint256 nftTokenId
+    ) public onlyOwner {
+        stakedNft[owner][nftAddress][nftTokenId].hasOwnership = false;
+    }
+
+    function isLiquidated(address nftAddress, uint256 nftTokenId)
+        public
+        view
+        returns (bool)
+    {
+        NftLendingStatus memory lendingStatus = safeGetNftLendingStatus(
             msg.sender,
             nftAddress,
             nftTokenId
         );
-        lendingStatus.hasOwnership = false;
+        return lendingStatus.hasOwnership == false;
     }
 
-    function getNftLendingStatus(
+    function safeGetNftLendingStatus(
         address owner,
         address nftAddress,
         uint256 nftTokenId
-    ) private returns (NftLendingStatus storage) {
+    ) private view returns (NftLendingStatus memory) {
         require(owner == msg.sender, "Not owner");
-        NftLendingStatus[] storage nftLendingStatusList = stakedNft[owner][
-            nftAddress
+        NftLendingStatus memory lendingStatus = stakedNft[owner][nftAddress][
+            nftTokenId
         ];
 
-        for (uint256 i = 0; i < nftLendingStatusList.length; i++) {
-            if (nftLendingStatusList[i].nftTokenId == nftTokenId) {
-                return nftLendingStatusList[i];
-            }
+        if (
+            lendingStatus.hasOwnership == false &&
+            lendingStatus.loanAmount == 0 &&
+            lendingStatus.nftTokenId == 0
+        ) {
+            revert("Not Nft staked");
         }
 
-        revert("Not Nft staked");
+        return lendingStatus;
     }
 
     //상환
