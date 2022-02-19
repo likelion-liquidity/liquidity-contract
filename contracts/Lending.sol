@@ -10,6 +10,11 @@ contract Lending is Ownable {
     using SafeMath for uint256;
     uint256 UNIT = 1e18;
 
+    // Seconds in a year calculation
+    // One Gregorian calendar year, has 365.2425 days:
+    // 1 year = 365.2425 days = (365.2425 days) × (24 hours/day) × (3600 seconds/hour) = 31556952 seconds
+    uint256 public SECONDS_IN_YEAR = 31556952;
+
     //contract
     KIP17Token nft;
     KIP7Token stable;
@@ -23,6 +28,8 @@ contract Lending is Ownable {
         uint256 nftTokenId;
         bool hasOwnership; //예치자가 소유권을 가지고 있는 지 (청산 유무 플래그)
         uint256 loanAmount; //빌려간 금액
+        uint256 debt;
+        uint256 lastBorrowedTime;
     }
 
     //variable
@@ -70,14 +77,52 @@ contract Lending is Ownable {
         stable.safeTransfer(msg.sender, loanAmount);
 
         //소유자 및 청산 유무 플래그 기록
+        uint256 interest = calcInterest(stakeNftAddress, stakeNftId);
+        uint256 debt = loanAmount + interest;
         stakedNft[msg.sender][stakeNftAddress].push(
-            NftLendingStatus(stakeNftId, true, loanAmount)
+            NftLendingStatus(
+                stakeNftId,
+                true,
+                loanAmount,
+                debt,
+                block.timestamp
+            )
         );
 
         userList.push(msg.sender);
 
         //대출 실행 이후, 이율 부과
         //todo : block.timestamp를 이용하여, 시간에 따른 이율 부과
+    }
+
+    function calcInterest(address nftAddress, uint256 nftTokenId)
+        public
+        returns (uint256)
+    {
+        NftLendingStatus memory lendingStatus = safeGetNftLendingStatus(
+            msg.sender,
+            nftAddress,
+            nftTokenId
+        );
+
+        if (
+            lendingStatus.lastBorrowedTime == 0 ||
+            block.timestamp == lendingStatus.lastBorrowedTime
+        ) {
+            return 0;
+        }
+
+        uint256 secondsSinceLastInterest = block.timestamp -
+            lendingStatus.lastBorrowedTime;
+        uint256 yearsBorrowed = secondsSinceLastInterest.div(SECONDS_IN_YEAR);
+        uint256 interestRate = 4;
+
+        uint256 principle = lendingStatus.debt;
+        for (uint256 i = 0; i < yearsBorrowed; i++) {
+            principle += (principle * interestRate) / 100;
+        }
+
+        return principle - lendingStatus.debt;
     }
 
     function sync() public onlyOwner {
