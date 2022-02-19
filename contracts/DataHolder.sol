@@ -105,7 +105,7 @@ contract DataHolder is Ownable {
     function _calcAvailableLoanAmount(
         address targetNftAddress,
         uint256 floorPrice
-    ) private returns (uint256) {
+    ) private view returns (uint256) {
         return
             (floorPrice.mul(whiteListNftData[targetNftAddress].maxLtv)).div(
                 100
@@ -146,6 +146,7 @@ contract DataHolder is Ownable {
 
     function getNftData(address targetNftAddress)
         public
+        view
         returns (NftData memory)
     {
         return whiteListNftData[targetNftAddress];
