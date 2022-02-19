@@ -8,6 +8,9 @@ import "./OpenZeppelin/Ownable.sol";
 
 //모든 데이터를 관리하는 홀더 컨트랙트
 contract DataHolder is Ownable {
+    using SafeMath for uint256;
+    uint256 UNIT = 1e18;
+
     struct NftData {
         bool activated;
         uint256 floorPrice;
@@ -61,7 +64,7 @@ contract DataHolder is Ownable {
         uint256 nftKlayPrice,
         uint256 klayExchangeRate
     ) public onlyOwner onlyWhiteList(targetNftAddress) {
-        uint256 floorPrice = (nftKlayPrice * klayExchangeRate) / (10**18);
+        uint256 floorPrice = (nftKlayPrice.mul(klayExchangeRate)).div(UNIT);
         whiteListNftData[targetNftAddress].nftKlayPrice = nftKlayPrice;
         whiteListNftData[targetNftAddress].floorPrice = floorPrice;
         setAvailableLoanAmount(
@@ -103,7 +106,10 @@ contract DataHolder is Ownable {
         address targetNftAddress,
         uint256 floorPrice
     ) private returns (uint256) {
-        return (floorPrice * whiteListNftData[targetNftAddress].maxLtv) / 100;
+        return
+            (floorPrice.mul(whiteListNftData[targetNftAddress].maxLtv)).div(
+                100
+            );
     }
 
     function getFloorPrice(address targetNftAddress)

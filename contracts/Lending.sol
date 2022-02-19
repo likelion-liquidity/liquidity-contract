@@ -7,6 +7,9 @@ import "./OpenZeppelin/Ownable.sol";
 import "./DataHolder.sol";
 
 contract Lending is Ownable {
+    using SafeMath for uint256;
+    uint256 UNIT = 1e18;
+
     //contract
     KIP17Token nft;
     KIP7Token stable;
@@ -98,10 +101,11 @@ contract Lending is Ownable {
                 ][nftAddress];
                 for (uint256 k = 0; k < nftLendingStatus.length; k++) {
                     if (nftLendingStatus[k].hasOwnership == true) {
-                        uint256 currLtv = (nftLendingStatus[k].loanAmount /
-                            nftData.availableLoanAmount) *
-                            100 *
-                            1e18;
+                        uint256 currLtv = (
+                            nftLendingStatus[k].loanAmount.div(
+                                nftData.availableLoanAmount
+                            )
+                        ).mul(100).mul(UNIT);
                         if (currLtv >= nftData.liqLtv) {
                             liquidate(
                                 userAddress,
@@ -195,7 +199,7 @@ contract Lending is Ownable {
         stable = KIP7Token(stableTokenAddress);
         stable.safeTransferFrom(msg.sender, address(this), repayAmount);
 
-        lendingStatus.loanAmount -= repayAmount;
+        lendingStatus.loanAmount = lendingStatus.loanAmount.sub(repayAmount);
 
         if (lendingStatus.loanAmount == 0) {
             nft = KIP17Token(targetNftAddress);
