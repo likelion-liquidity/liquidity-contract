@@ -282,3 +282,40 @@ contract("청산 LTV", async (accounts) => {
         it.skip("이미 대출이 실행되고 있는 NFT Collection에 대해 청산 ltv를 변경할 수 없다.", async () => {});
     });
 });
+
+contract("이율", async (accounts) => {
+    const maxLtv = 80;
+    const liqLtv = 90;
+    const tokenId = 0;
+    const interest = 4;
+    let dataHolderContract;
+    let nftContract;
+    let notWhiteListContract;
+    let creator;
+    let owner;
+    let hacker;
+
+    beforeEach(async () => {
+        ({ dataHolderContract, nftContract, creator, owner, hacker, notWhiteListContract } =
+            await prerequisite(accounts));
+    });
+
+    describe("로직 검증", async () => {
+        it("NFT Collection을 대상으로 이율을 변경하면, 이율이 변경되어야함", async () => {
+            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
+            await dataHolderContract.setInterest(nftContract.address, interest);
+            const expectedInterest = await dataHolderContract.getInterest(nftContract.address);
+            assert.equal(interest, expectedInterest);
+        });
+    });
+    describe("예외처리 검증", async () => {
+        it("화이트리스트가 아닌 NFT Collection에 이율을 변경할 수 없다.", async () => {
+            await dataHolderContract.setInterest(nftContract.address, interest).should.be.rejected;
+        });
+        it("owner가 아닌 계정으로 호출함", async () => {
+            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
+            await dataHolderContract.setInterest(nftContract.address, interest, { from: hacker })
+                .should.be.rejected;
+        });
+    });
+});

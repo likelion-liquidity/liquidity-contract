@@ -18,6 +18,7 @@ contract DataHolder is Ownable {
         uint256 maxLtv;
         uint256 liqLtv;
         uint256 nftKlayPrice;
+        uint256 interest;
     }
 
     address[] whiteListNftList;
@@ -112,6 +113,14 @@ contract DataHolder is Ownable {
             );
     }
 
+    function setInterest(address targetNftAddress, uint256 _interest)
+        public
+        onlyOwner
+        onlyWhiteList(targetNftAddress)
+    {
+        whiteListNftData[targetNftAddress].interest = _interest;
+    }
+
     function getFloorPrice(address targetNftAddress)
         public
         view
@@ -134,6 +143,14 @@ contract DataHolder is Ownable {
 
     function getLiqLtv(address targetNftAdrress) public view returns (uint256) {
         return whiteListNftData[targetNftAdrress].liqLtv;
+    }
+
+    function getInterest(address targetNftAddress)
+        public
+        view
+        returns (uint256)
+    {
+        return whiteListNftData[targetNftAddress].interest;
     }
 
     function isWhiteList(address targetNftAddress) public view returns (bool) {
