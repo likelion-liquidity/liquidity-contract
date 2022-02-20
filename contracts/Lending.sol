@@ -37,22 +37,39 @@ contract Lending is Ownable {
         stableTokenAddress = _stableTokenAddress;
     }
 
-    //NFT 화이트리스트 체크
     function isNftWhiteList(address nftAddress) private returns (bool) {
         return dataHolder.isWhiteList(nftAddress);
     }
 
-    //예치 및 대출 실행
-    function stakeAndBorrow(
+    function stake(address nftAddress, uint256 nftTokenId) public {
+        require(isNftWhiteList(nftAddress) == true, "NFT isn't WL");
+
+        nft = KIP17Token(nftAddress);
+        require(nft.ownerOf(nftTokenId) == msg.sender, "NFT isn't yours");
+
+        nft.safeTransferFrom(msg.sender, address(this), nftTokenId);
+        stakedNft[msg.sender][nftAddress].push(
+            NftLendingStatus(nftTokenId, true, 0)
+        );
+
+        userList.push(msg.sender);
+    }
+
+    function borrow(
         uint256 loanAmount,
-        address stakeNftAddress,
-        uint256 stakeNftId
+        address nftAddress,
+        uint256 nftTokenId
     ) public {
-        nft = KIP17Token(stakeNftAddress);
-        require(isNftWhiteList(stakeNftAddress) == true, "NFT isn't WL");
-        require(nft.ownerOf(stakeNftId) == msg.sender, "NFT isn't yours");
+        NftLendingStatus memory lendingStatus = safeGetNftLendingStatus(
+            msg.sender,
+            nftAddress,
+            nftTokenId
+        );
+
+        require(lendingStatus.hasOwnership == true, "Already Liquidated");
+
         require(
-            dataHolder.getAvailableLoanAmount(stakeNftAddress) >= loanAmount,
+            dataHolder.getAvailableLoanAmount(nftAddress) >= loanAmount,
             "too much loanAmount"
         );
 
@@ -62,22 +79,12 @@ contract Lending is Ownable {
             "Balance isn't enough"
         );
 
-        //소유권 이전 (호출 전, kas 내에서 approve()를 호출하여, 해당 nft가 contract를 컨트롤할 수 있도록 해야한다)
-        nft.safeTransferFrom(msg.sender, address(this), stakeNftId);
-
         //대출 실행
         stable.approve(msg.sender, loanAmount);
         stable.safeTransfer(msg.sender, loanAmount);
 
         //소유자 및 청산 유무 플래그 기록
-        stakedNft[msg.sender][stakeNftAddress].push(
-            NftLendingStatus(stakeNftId, true, loanAmount)
-        );
-
-        userList.push(msg.sender);
-
-        //대출 실행 이후, 이율 부과
-        //todo : block.timestamp를 이용하여, 시간에 따른 이율 부과
+        stakedNft[msg.sender][nftAddress][nftTokenId].loanAmount = loanAmount;
     }
 
     function sync() public onlyOwner {
@@ -119,7 +126,6 @@ contract Lending is Ownable {
         }
     }
 
-    //청산
     function liquidate(
         address owner,
         address nftAddress,
@@ -162,7 +168,6 @@ contract Lending is Ownable {
         return lendingStatus;
     }
 
-    //상환
     function repay(
         uint256 repayAmount,
         address targetNftAddress,
@@ -209,6 +214,10 @@ contract Lending is Ownable {
                 lendingStatus.nftTokenId
             );
         }
+    }
+
+    function getUserList() public view returns (address[] memory) {
+        return userList;
     }
 
     function onKIP7Received(
