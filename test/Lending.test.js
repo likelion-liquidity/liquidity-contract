@@ -1,5 +1,4 @@
 const { assert } = require("chai");
-const BigNumber = require("bignumber.js");
 
 const Lending = artifacts.require("./contract/Lending.sol");
 const KIP7Token = artifacts.require("./node_modules/@klaytn/contracts/token/KIP7/KIP7Token.sol");
@@ -7,34 +6,31 @@ const KIP17Token = artifacts.require("./node_modules/@klaytn/contracts/token/KIP
 const DataHolder = artifacts.require("./contract/DataHolder.sol");
 
 require("chai").use(require("chai-as-promised")).should();
+const { encode, decode } = require("./utils/bn.js");
 
 const prerequisite = async (accounts) => {
-    const nftKlayPrice = new BigNumber(500).times(new BigNumber(10 ** 18));
-    const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
+    const nftKlayPrice = 500;
+    const klayExchangeRate = 1;
     const maxLtv = 80;
     const liqLtv = 90;
 
     let nftContract = await KIP17Token.new("WhiteListed", "WL");
     let notWhiteListContract = await KIP17Token.new("NotWhiteListed", "NWL");
-    let stableContract = await KIP7Token.new(
-        "StableToken",
-        "Stable",
-        18,
-        new BigNumber(1000).times(new BigNumber(10 ** 18))
-    );
+    let stableContract = await KIP7Token.new("StableToken", "Stable", 18, encode(1000));
 
     let dataHolderContract = await DataHolder.new();
     await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-    await dataHolderContract.setFloorPrice(nftContract.address, nftKlayPrice, klayExchangeRate);
+    await dataHolderContract.setFloorPrice(
+        nftContract.address,
+        encode(nftKlayPrice),
+        encode(klayExchangeRate)
+    );
 
     let lendingContract = await Lending.new(dataHolderContract.address, stableContract.address);
     let owner = accounts[0];
     let hacker = accounts[1];
 
-    await stableContract.mint(
-        lendingContract.address,
-        new BigNumber(1000).times(new BigNumber(10 ** 18))
-    );
+    await stableContract.mint(lendingContract.address, encode(1000));
 
     return {
         lendingContract,
@@ -48,8 +44,8 @@ const prerequisite = async (accounts) => {
 };
 
 contract("예치", async (accounts) => {
-    const amount = new BigNumber(100).times(new BigNumber(10 ** 18));
     const tokenId = 0;
+
     let nftContract;
     let lendingContract;
     let owner;
@@ -108,7 +104,7 @@ contract("예치", async (accounts) => {
 
 contract("대출", async (accounts) => {
     const tokenId = 0;
-    const loanAmount = new BigNumber(100).times(new BigNumber(10 ** 18));
+    const loanAmount = 100;
 
     describe("로직 검증", async () => {
         it("대출자에게 요청한 만큼의 토큰이 전송됨", async () => {
@@ -118,12 +114,12 @@ contract("대출", async (accounts) => {
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
 
-            const beforeBalanceOfOwner = await stableContract.balanceOf(owner);
+            const beforeBalanceOfOwner = decode(await stableContract.balanceOf(owner));
 
             await lendingContract.stake(nftContract.address, tokenId);
-            await lendingContract.borrow(loanAmount, nftContract.address, tokenId);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId);
 
-            const afterBalanceOfOwner = await stableContract.balanceOf(owner);
+            const afterBalanceOfOwner = decode(await stableContract.balanceOf(owner));
 
             assert.equal(afterBalanceOfOwner - beforeBalanceOfOwner, loanAmount);
         });
@@ -138,21 +134,23 @@ contract("대출", async (accounts) => {
                 notWhiteListContract,
                 dataHolderContract,
             } = await prerequisite(accounts);
-            const overflowPrice = new BigNumber(800).times(new BigNumber(10 ** 18));
-            const nftKlayPrice = new BigNumber(1000).times(new BigNumber(10 ** 18));
-            const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
+
+            const overflowPrice = 800;
+            const nftKlayPrice = 1000;
+            const klayExchangeRate = 1;
+
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             );
 
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
 
             await lendingContract.stake(nftContract.address, tokenId);
-            await lendingContract.borrow(overflowPrice, nftContract.address, tokenId).should.be
-                .fulfilled;
+            await lendingContract.borrow(encode(overflowPrice), nftContract.address, tokenId).should
+                .be.fulfilled;
         });
     });
 
@@ -191,11 +189,8 @@ contract("대출", async (accounts) => {
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
             await lendingContract.stake(nftContract.address, tokenId);
-            await lendingContract.borrow(
-                new BigNumber(9999).times(new BigNumber(10 ** 18)),
-                nftContract.address,
-                tokenId
-            ).should.be.rejected;
+            await lendingContract.borrow(encode(9999), nftContract.address, tokenId).should.be
+                .rejected;
         });
 
         it("NFT로 빌릴 수 있는 한도보다 높게 대출을 신청함", async () => {
@@ -208,21 +203,21 @@ contract("대출", async (accounts) => {
                 notWhiteListContract,
                 dataHolderContract,
             } = await prerequisite(accounts);
-            const overflowPrice = new BigNumber(401).times(new BigNumber(10 ** 18));
-            const nftKlayPrice = new BigNumber(500).times(new BigNumber(10 ** 18));
-            const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
+            const overflowPrice = 401;
+            const nftKlayPrice = 500;
+            const klayExchangeRate = 1;
 
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             );
 
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
             await lendingContract.stake(nftContract.address, tokenId);
-            await lendingContract.borrow(overflowPrice, nftContract.address, tokenId).should.be
-                .rejected;
+            await lendingContract.borrow(encode(overflowPrice), nftContract.address, tokenId).should
+                .be.rejected;
         });
 
         it("이미 청산된 NFT로는 대출을 신청할 수 없음", async () => {
@@ -236,38 +231,38 @@ contract("대출", async (accounts) => {
                 dataHolderContract,
             } = await prerequisite(accounts);
 
-            const liquidatePrice = new BigNumber(880).times(new BigNumber(10 ** 18));
-            const nftKlayPrice = new BigNumber(1000).times(new BigNumber(10 ** 18));
-            const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
-            const loanAmount = new BigNumber(800).times(new BigNumber(10 ** 18));
+            const liquidatePrice = 880;
+            const nftKlayPrice = 1000;
+            const klayExchangeRate = 1;
+            const loanAmount = 800;
 
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             ); //(800/1000) = 80%
 
             await nftContract.mint(owner, tokenId);
             await nftContract.approve(lendingContract.address, tokenId);
             await lendingContract.stake(nftContract.address, tokenId);
-            await lendingContract.borrow(loanAmount, nftContract.address, tokenId);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId);
 
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                liquidatePrice,
-                klayExchangeRate
+                encode(liquidatePrice),
+                encode(klayExchangeRate)
             ); //(800/880) = 90.9%
 
             await lendingContract.sync();
 
-            await lendingContract.borrow(loanAmount, nftContract.address, tokenId).should.be
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId).should.be
                 .rejected;
         });
     });
 });
 
 contract("청산", async (accounts) => {
-    const amount = new BigNumber(100).times(new BigNumber(10 ** 18));
+    const amount = 100;
     const tokenId = 0;
     let nftContract;
     let lendingContract;
@@ -290,7 +285,7 @@ contract("청산", async (accounts) => {
         await nftContract.mint(owner, tokenId);
         await nftContract.approve(lendingContract.address, tokenId);
         await lendingContract.stake(nftContract.address, tokenId);
-        await lendingContract.borrow(amount, nftContract.address, tokenId);
+        await lendingContract.borrow(encode(amount), nftContract.address, tokenId);
     });
 
     describe("로직 검증", async () => {
@@ -302,26 +297,27 @@ contract("청산", async (accounts) => {
         });
 
         it("데이터를 sync했을 때, 청산 조건에 부합하는 nft들은 청산됨", async () => {
-            const liquidatePrice = new BigNumber(880).times(new BigNumber(10 ** 18));
-            const nftKlayPrice = new BigNumber(1000).times(new BigNumber(10 ** 18));
-            const klayExchangeRate = new BigNumber(1).times(new BigNumber(10 ** 18));
-            const loanAmount = new BigNumber(800).times(new BigNumber(10 ** 18));
+            const liquidatePrice = 880;
+            const nftKlayPrice = 1000;
+            const klayExchangeRate = 1;
+            const loanAmount = 800;
+
             await nftContract.mint(owner, tokenId + 1);
             await nftContract.approve(lendingContract.address, tokenId + 1);
 
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             ); //(800/1000) = 80%
 
             await lendingContract.stake(nftContract.address, tokenId + 1);
-            await lendingContract.borrow(loanAmount, nftContract.address, tokenId + 1);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId + 1);
 
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                liquidatePrice,
-                klayExchangeRate
+                encode(liquidatePrice),
+                encode(klayExchangeRate)
             ); //(800/880) = 90.9%
 
             await lendingContract.sync();
@@ -367,8 +363,8 @@ contract("상환", async (accounts) => {
     let stableContract;
     let notWhiteListContract;
     const tokenId = 0;
-    const loanAmount = new BigNumber(100).times(new BigNumber(10 ** 18));
-    const repayAmount = new BigNumber(99).times(new BigNumber(10 ** 18));
+    const loanAmount = 100;
+    const repayAmount = 99;
 
     beforeEach(async () => {
         ({ lendingContract, nftContract, owner, hacker, stableContract, notWhiteListContract } =
@@ -376,39 +372,40 @@ contract("상환", async (accounts) => {
         await nftContract.mint(owner, tokenId);
         await nftContract.approve(lendingContract.address, tokenId);
         await lendingContract.stake(nftContract.address, tokenId);
-        await lendingContract.borrow(loanAmount, nftContract.address, tokenId);
+        await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId);
     });
 
     describe("로직 검증", async () => {
         it("대출금을 전부 상환하면, NFT의 소유권을 가져옴", async () => {
-            await stableContract.approve(lendingContract.address, loanAmount);
-            await lendingContract.repay(loanAmount, nftContract.address, tokenId);
+            await stableContract.approve(lendingContract.address, encode(loanAmount));
+            await lendingContract.repay(encode(loanAmount), nftContract.address, tokenId);
             assert.equal(await nftContract.ownerOf(tokenId), owner);
         });
 
         it("대출금을 일부만 상환하면, 프로토콜이 NFT를 소유함", async () => {
-            await stableContract.approve(lendingContract.address, repayAmount);
-            await lendingContract.repay(repayAmount, nftContract.address, tokenId);
+            await stableContract.approve(lendingContract.address, encode(repayAmount));
+            await lendingContract.repay(encode(repayAmount), nftContract.address, tokenId);
             assert.equal(await nftContract.ownerOf(tokenId), lendingContract.address);
         });
 
         it("대출금을 상환하면, 상환한 갯수만큼 소유 토큰 갯수가 줄어야함", async () => {
-            await stableContract.mint(owner, new BigNumber(1000).times(new BigNumber(10 ** 18)));
-            const beforeBalance = await stableContract.balanceOf(owner);
-            await stableContract.approve(lendingContract.address, repayAmount);
-            await lendingContract.repay(repayAmount, nftContract.address, tokenId);
-            const afterBalance = await stableContract.balanceOf(owner);
+            await stableContract.mint(owner, encode(1000));
+            const beforeBalance = decode(await stableContract.balanceOf(owner));
+            await stableContract.approve(lendingContract.address, encode(repayAmount));
+            await lendingContract.repay(encode(repayAmount), nftContract.address, tokenId);
+            const afterBalance = decode(await stableContract.balanceOf(owner));
             assert.equal(beforeBalance - repayAmount, afterBalance);
         });
     });
 
     describe("예외처리 검증", async () => {
         it("상환액이 0이하만큼 상환함", async () => {
-            await lendingContract.repay(-100, nftContract.address, tokenId).should.be.rejected;
+            await lendingContract.repay(encode(-100), nftContract.address, tokenId).should.be
+                .rejected;
         });
 
         it("NFT를 예치한 사용자가 아닌, 다른 사용자가 상환함", async () => {
-            await lendingContract.repay(loanAmount, nftContract.address, tokenId, {
+            await lendingContract.repay(encode(loanAmount), nftContract.address, tokenId, {
                 from: hacker,
             }).should.be.rejected;
         });
@@ -417,12 +414,12 @@ contract("상환", async (accounts) => {
             await nftContract.mint(owner, tokenId + 1);
             await nftContract.approve(lendingContract.address, tokenId + 1);
             await lendingContract.stake(nftContract.address, tokenId + 1);
-            await lendingContract.borrow(loanAmount, nftContract.address, tokenId + 1);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId + 1);
 
             await lendingContract.liquidate(owner, nftContract.address, tokenId + 1);
 
-            await lendingContract.repay(loanAmount, nftContract.address, tokenId + 1).should.be
-                .rejected;
+            await lendingContract.repay(encode(loanAmount), nftContract.address, tokenId + 1).should
+                .be.rejected;
         });
     });
 });

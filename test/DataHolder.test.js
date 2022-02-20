@@ -6,6 +6,7 @@ require("chai").use(require("chai-as-promised")).should();
 const DataHolder = artifacts.require("./contract/DataHolder.sol");
 const KIP7Token = artifacts.require("./node_modules/@klaytn/contracts/token/KIP7/KIP7Token.sol");
 const KIP17Token = artifacts.require("./node_modules/@klaytn/contracts/token/KIP17/KIP17Token.sol");
+const { encode, decode } = require("./utils/bn.js");
 
 require("chai").use(require("chai-as-promised")).should();
 
@@ -118,8 +119,8 @@ contract("화이트 리스트 삭제", async (accounts) => {
 
 contract("바닥가 갱신", async (accounts) => {
     const tokenId = 0;
-    const nftKlayPrice = new BigNumber(100).times(new BigNumber(10 ** 18));
-    const klayExchangeRate = new BigNumber(1.245).times(new BigNumber(10 ** 18));
+    const nftKlayPrice = 100;
+    const klayExchangeRate = 1.245;
     const maxLtv = 80;
     const liqLtv = 90;
     let dataHolderContract;
@@ -140,38 +141,42 @@ contract("바닥가 갱신", async (accounts) => {
         it("바닥가를 갱신하면, 해당 nft의 바닥가가 변경되어야함", async () => {
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             );
-            const expectedfloorPrice = await dataHolderContract.getFloorPrice(nftContract.address);
+            const floorPrice = decode(await dataHolderContract.getFloorPrice(nftContract.address));
+            const expectedFloorPrice = new BigNumber(nftKlayPrice).times(klayExchangeRate);
 
-            const floorPrice = nftKlayPrice.times(klayExchangeRate).div(new BigNumber(10 ** 18));
-            assert.equal(floorPrice.toString(), expectedfloorPrice.toString());
+            assert.equal(floorPrice.toString(), expectedFloorPrice.toString());
         });
 
         it("바닥가를 갱신하면, 해당 nft로 빌릴 수 있는 금액도 변경되어야함", async () => {
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             );
-            const availableLoanAmount = await dataHolderContract.getAvailableLoanAmount(
-                nftContract.address
+            const availableLoanAmount = decode(
+                await dataHolderContract.getAvailableLoanAmount(nftContract.address)
             );
-            const floorPrice = await dataHolderContract.getFloorPrice(nftContract.address);
-            assert.equal(
-                new BigNumber(floorPrice).times(maxLtv).div(100).toString(),
-                availableLoanAmount.toString()
-            );
+
+            const expectedAvailableLoanAmount = new BigNumber(nftKlayPrice)
+                .times(klayExchangeRate)
+                .times(maxLtv)
+                .div(100);
+
+            assert.equal(availableLoanAmount.toString(), expectedAvailableLoanAmount.toString());
         });
 
         it("바닥가를 갱신하면, 해당 NFT의 KLAY가격이 변경되어야함", async () => {
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             );
-            const expectedKlayPrice = await dataHolderContract.getNftKlayPrice(nftContract.address);
+            const expectedKlayPrice = decode(
+                await dataHolderContract.getNftKlayPrice(nftContract.address)
+            );
             assert.equal(nftKlayPrice.toString(), expectedKlayPrice.toString());
         });
     });
@@ -179,15 +184,15 @@ contract("바닥가 갱신", async (accounts) => {
         it("화이트리스트가 아닌 NFT Collection은 바닥가를 변경할 수 없음", async () => {
             await dataHolderContract.setFloorPrice(
                 notWhiteListContract.address,
-                nftKlayPrice,
-                klayExchangeRate
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
             ).should.be.rejected;
         });
         it("owner가 아닌 계정으로 호출함", async () => {
             await dataHolderContract.setFloorPrice(
                 nftContract.address,
-                nftKlayPrice,
-                klayExchangeRate,
+                encode(nftKlayPrice),
+                encode(klayExchangeRate),
                 {
                     from: hacker,
                 }
