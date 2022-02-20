@@ -23,6 +23,7 @@ contract Lending is Ownable {
         uint256 nftTokenId;
         bool hasOwnership; //예치자가 소유권을 가지고 있는 지 (청산 유무 플래그)
         uint256 loanAmount; //빌려간 금액
+        uint256 startBlock;
     }
 
     //variable

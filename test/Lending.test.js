@@ -326,6 +326,8 @@ contract("3. 상환", async (accounts) => {
             const afterBalance = await stableContract.balanceOf(owner);
             assert.equal(beforeBalance - repayAmount, afterBalance);
         });
+
+        it.skip("대출금을 상환하면, 원리금에 이자가 반영되어야함", async () => {});
     });
 
     describe("예외처리 검증", async () => {
@@ -349,5 +351,16 @@ contract("3. 상환", async (accounts) => {
             await lendingContract.repay(loanAmount, nftContract.address, tokenId + 1).should.be
                 .rejected;
         });
+    });
+});
+
+contract("이율 부과", async (accounts) => {
+    describe("로직 검증", async () => {
+        it.skip("빌린 시점으로부터 지금까지 부과된 이자가 연이율 대비 초당 이율 * 빌린 시간의 값과 동일해야함", async () => {});
+        it.skip("", async () => {});
+    });
+    describe("예외처리 검증", async () => {
+        it.skip("이미 청산된 NFT는 이율을 부과하지 않는다.", async () => {});
+        it.skip("", async () => {});
     });
 });
