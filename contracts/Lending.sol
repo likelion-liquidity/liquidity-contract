@@ -41,6 +41,17 @@ contract Lending is Ownable {
         return dataHolder.isWhiteList(nftAddress);
     }
 
+    function getStakedNftList(address userAddress, address nftAddress)
+        public
+        view
+        returns (NftLendingStatus[] memory)
+    {
+        NftLendingStatus[] memory lendingStatus = stakedNft[userAddress][
+            nftAddress
+        ];
+        return lendingStatus;
+    }
+
     function stake(address nftAddress, uint256 nftTokenId) public {
         require(isNftWhiteList(nftAddress) == true, "NFT isn't WL");
 
