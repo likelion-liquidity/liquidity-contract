@@ -32,7 +32,11 @@ contract("화이트 리스트 추가", async (accounts) => {
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
             const isWhiteList = await dataHolderContract.isWhiteList(nftContract.address, {
                 from: creator,
             });
@@ -46,15 +50,16 @@ contract("화이트 리스트 추가", async (accounts) => {
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address, 101, 102).should.be.rejected;
+            await dataHolderContract.addWhiteList(nftContract.address, encode(101), encode(102))
+                .should.be.rejected;
         });
         it("LTV는 0보다 낮아질 수 없다.", async () => {
             const { dataHolderContract, nftContract, creator, owner, hacker } = await prerequisite(
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address, -1, liqLtv).should.be
-                .rejected;
+            await dataHolderContract.addWhiteList(nftContract.address, encode(-1), encode(liqLtv))
+                .should.be.rejected;
         });
 
         it("이미 화이트리스트에 추가된 NFT Collection은 다시 추가할 수 없다.", async () => {
@@ -62,9 +67,16 @@ contract("화이트 리스트 추가", async (accounts) => {
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv).should.be
-                .rejected;
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            ).should.be.rejected;
         });
 
         it("owner가 아닌 계정으로 호출함", async () => {
@@ -72,9 +84,14 @@ contract("화이트 리스트 추가", async (accounts) => {
                 accounts
             );
             await nftContract.mint(owner, tokenId);
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv, {
-                from: hacker,
-            }).should.be.rejected;
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv),
+                {
+                    from: hacker,
+                }
+            ).should.be.rejected;
         });
     });
 });
@@ -94,7 +111,7 @@ contract("화이트 리스트 삭제", async (accounts) => {
             accounts
         ));
         await nftContract.mint(owner, tokenId);
-        await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
+        await dataHolderContract.addWhiteList(nftContract.address, encode(maxLtv), encode(liqLtv));
     });
     describe("로직 검증", async () => {
         it("화이트리스트를 삭제하면, 화이트리스트에서 삭제되어야함", async () => {
@@ -134,7 +151,7 @@ contract("바닥가 갱신", async (accounts) => {
         ({ dataHolderContract, nftContract, creator, owner, hacker, notWhiteListContract } =
             await prerequisite(accounts));
         await nftContract.mint(owner, tokenId);
-        await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
+        await dataHolderContract.addWhiteList(nftContract.address, encode(maxLtv), encode(liqLtv));
     });
 
     describe("로직 검증", async () => {
@@ -219,29 +236,46 @@ contract("최대 LTV", async (accounts) => {
     });
     describe("로직 검증", async () => {
         it("LTV를 변경하면, LTV가 변경되어야한다.", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setMaxLtv(nftContract.address, maxLtv + 10);
-            const expectedLtv = await dataHolderContract.getMaxLtv(nftContract.address);
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setMaxLtv(nftContract.address, encode(maxLtv + 10));
+            const expectedLtv = decode(await dataHolderContract.getMaxLtv(nftContract.address));
             assert.equal(maxLtv + 10, expectedLtv);
         });
     });
     describe("예외처리 검증", async () => {
         it("LTV는 100을 넘을 수 없다.", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setMaxLtv(nftContract.address, 101).should.be.rejected;
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setMaxLtv(nftContract.address, encode(101)).should.be.rejected;
         });
         it("LTV는 0보다 낮아질 수 없다.", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setMaxLtv(nftContract.address, -1).should.be.rejected;
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setMaxLtv(nftContract.address, encode(-1)).should.be.rejected;
         });
         it("화이트리스트가 아닌 NFT Collection에 LTV를 변경할 수 없다.", async () => {
-            await dataHolderContract.setMaxLtv(notWhiteListContract.address, maxLtv).should.be
-                .rejected;
+            await dataHolderContract.setMaxLtv(notWhiteListContract.address, encode(maxLtv)).should
+                .be.rejected;
         });
         it.skip("이미 대출이 실행되고 있는 NFT Collection에 대해 청산 ltv를 변경할 수 없다.", async () => {});
         it("owner가 아닌 계정으로 호출함", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setMaxLtv(maxLtv + 10, { from: hacker }).should.be.rejected;
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setMaxLtv(encode(maxLtv + 10), { from: hacker }).should.be
+                .rejected;
         });
     });
 });
@@ -263,25 +297,39 @@ contract("청산 LTV", async (accounts) => {
     });
     describe("로직 검증", async () => {
         it("청산 ltv를 변경하면, 변경되어야함", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setLiqLtv(nftContract.address, liqLtv + 5);
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setLiqLtv(nftContract.address, encode(liqLtv + 5));
 
-            expectedLiqLtv = await dataHolderContract.getLiqLtv(nftContract.address);
+            expectedLiqLtv = decode(await dataHolderContract.getLiqLtv(nftContract.address));
             assert.equal(liqLtv + 5, expectedLiqLtv);
         });
     });
     describe("예외처리 검증", async () => {
         it("청산 ltv는 최대 ltv 보다 작거나 같을 수 없음", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setLiqLtv(nftContract.address, maxLtv).should.be.rejected;
-        });
-        it("화이트리스트가 아닌 NFT Collection에 청산 ltv를 변경할 수 없다.", async () => {
-            await dataHolderContract.setLiqLtv(notWhiteListContract.address, liqLtv + 5).should.be
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setLiqLtv(nftContract.address, encode(maxLtv)).should.be
                 .rejected;
         });
+        it("화이트리스트가 아닌 NFT Collection에 청산 ltv를 변경할 수 없다.", async () => {
+            await dataHolderContract.setLiqLtv(notWhiteListContract.address, encode(liqLtv + 5))
+                .should.be.rejected;
+        });
         it("owner가 아닌 계정으로 호출함", async () => {
-            await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
-            await dataHolderContract.setLiqLtv(liqLtv + 5, { from: hacker }).should.be.rejected;
+            await dataHolderContract.addWhiteList(
+                nftContract.address,
+                encode(maxLtv),
+                encode(liqLtv)
+            );
+            await dataHolderContract.setLiqLtv(encode(liqLtv + 5), { from: hacker }).should.be
+                .rejected;
         });
 
         it.skip("이미 대출이 실행되고 있는 NFT Collection에 대해 청산 ltv를 변경할 수 없다.", async () => {});
