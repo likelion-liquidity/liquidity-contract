@@ -19,7 +19,7 @@ const prerequisite = async (accounts) => {
     let stableContract = await KIP7Token.new("StableToken", "Stable", 18, encode(1000));
 
     let dataHolderContract = await DataHolder.new();
-    await dataHolderContract.addWhiteList(nftContract.address, maxLtv, liqLtv);
+    await dataHolderContract.addWhiteList(nftContract.address, encode(maxLtv), encode(liqLtv));
     await dataHolderContract.setFloorPrice(
         nftContract.address,
         encode(nftKlayPrice),

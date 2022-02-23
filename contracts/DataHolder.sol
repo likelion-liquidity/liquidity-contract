@@ -86,7 +86,11 @@ contract DataHolder is Ownable {
         onlyOwner
         onlyWhiteList(targetNftAddress)
     {
-        require(_maxLtv >= 0 && _maxLtv <= 100, "invalid value arange");
+        uint256 limit = 100;
+        require(
+            _maxLtv >= 0 && _maxLtv <= limit.mul(1e18),
+            "invalid value arange"
+        );
         whiteListNftData[targetNftAddress].maxLtv = _maxLtv;
     }
 
@@ -107,9 +111,9 @@ contract DataHolder is Ownable {
         uint256 floorPrice
     ) private view returns (uint256) {
         return
-            (floorPrice.mul(whiteListNftData[targetNftAddress].maxLtv)).div(
-                100
-            );
+            (floorPrice.mul(whiteListNftData[targetNftAddress].maxLtv))
+                .div(100)
+                .div(1e18);
     }
 
     function getFloorPrice(address targetNftAddress)
