@@ -80,7 +80,9 @@ contract Lending is Ownable {
         require(lendingStatus.hasOwnership == true, "Already Liquidated");
 
         require(
-            dataHolder.getAvailableLoanAmount(nftAddress) >= loanAmount,
+            dataHolder.getAvailableLoanAmount(nftAddress) -
+                lendingStatus.loanAmount >=
+                loanAmount,
             "too much loanAmount"
         );
 

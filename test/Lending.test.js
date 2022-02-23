@@ -152,6 +152,36 @@ contract("대출", async (accounts) => {
             await lendingContract.borrow(encode(overflowPrice), nftContract.address, tokenId).should
                 .be.fulfilled;
         });
+
+        it("현재 대출 가능한만큼만 대출할 수 있음", async () => {
+            const {
+                lendingContract,
+                nftContract,
+                owner,
+                hacker,
+                stableContract,
+                notWhiteListContract,
+                dataHolderContract,
+            } = await prerequisite(accounts);
+
+            await nftContract.mint(owner, tokenId);
+            await nftContract.approve(lendingContract.address, tokenId);
+
+            const loanAmount = 500;
+            const nftKlayPrice = 1000;
+            const klayExchangeRate = 1;
+
+            await dataHolderContract.setFloorPrice(
+                nftContract.address,
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
+            );
+
+            await lendingContract.stake(nftContract.address, tokenId);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId).should.be
+                .rejected;
+        });
     });
 
     describe("예외처리 검증", async () => {
