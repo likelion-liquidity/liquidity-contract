@@ -185,17 +185,17 @@ contract Lending is Ownable {
 
     function repay(
         uint256 repayAmount,
-        address targetNftAddress,
-        uint256 targetNftTokenId
+        address nftAddress,
+        uint256 nftTokenId
     ) public {
         NftLendingStatus[] storage lendingStatusList = stakedNft[msg.sender][
-            targetNftAddress
+            nftAddress
         ];
 
         bool isOwner = false;
         uint256 index = 0;
         for (uint256 i = 0; i < lendingStatusList.length; i++) {
-            if (lendingStatusList[i].nftTokenId == targetNftTokenId) {
+            if (lendingStatusList[i].nftTokenId == nftTokenId) {
                 isOwner = true;
                 index = i;
                 break;
@@ -222,17 +222,42 @@ contract Lending is Ownable {
         lendingStatus.loanAmount = lendingStatus.loanAmount.sub(repayAmount);
 
         if (lendingStatus.loanAmount == 0) {
-            nft = KIP17Token(targetNftAddress);
+            nft = KIP17Token(nftAddress);
             nft.safeTransferFrom(
                 address(this),
                 msg.sender,
                 lendingStatus.nftTokenId
             );
+
+            _removeStakedNft(msg.sender, nftAddress, nftTokenId);
         }
     }
 
     function getUserList() public view returns (address[] memory) {
         return userList;
+    }
+
+    function _removeStakedNft(
+        address owner,
+        address nftAddress,
+        uint256 nftTokenId
+    ) private {
+        uint256 length = stakedNft[owner][nftAddress].length;
+        for (uint256 i = 0; i < length; i++) {
+            if (nftTokenId == stakedNft[owner][nftAddress][i].nftTokenId) {
+                NftLendingStatus storage lendingStatus = stakedNft[owner][
+                    nftAddress
+                ][i];
+
+                stakedNft[owner][nftAddress][i] = stakedNft[owner][nftAddress][
+                    length - 1
+                ];
+
+                stakedNft[owner][nftAddress][length - 1] = lendingStatus;
+                break;
+            }
+        }
+        stakedNft[owner][nftAddress].pop();
     }
 
     function onKIP7Received(
