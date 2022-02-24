@@ -221,11 +221,8 @@ contract("대출", async (accounts) => {
                 nftContract.address
             );
 
-            console.log(stakedNftList[0]);
-
-            // awa;
-            // await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId).should.be
-            //     .rejected;
+            const expectedLoanAmount = decode(stakedNftList[0].loanAmount);
+            assert.equal(loanAmount, expectedLoanAmount);
         });
     });
 
