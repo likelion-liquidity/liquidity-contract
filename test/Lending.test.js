@@ -471,6 +471,26 @@ contract("상환", async (accounts) => {
             const afterBalance = decode(await stableContract.balanceOf(owner));
             assert.equal(beforeBalance - repayAmount, afterBalance);
         });
+
+        it("대출금을 상환하면, 스테이킹된 리스트에서 제외되어야함", async () => {
+            await nftContract.mint(owner, tokenId + 1);
+            await nftContract.approve(lendingContract.address, tokenId + 1);
+            await lendingContract.stake(nftContract.address, tokenId + 1);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId + 1);
+
+            let stakedNftList = await lendingContract.getStakedNftList(owner, nftContract.address);
+            const beforeRepayCount = stakedNftList.length;
+
+            await stableContract.approve(lendingContract.address, encode(loanAmount));
+            await lendingContract.repay(encode(loanAmount), nftContract.address, tokenId);
+
+            stakedNftList = await lendingContract.getStakedNftList(owner, nftContract.address);
+            const afterRepayCount = stakedNftList.length;
+
+            const isRepayNftStaked = stakedNftList.map((nft) => nft.nftTokenId).includes(tokenId);
+            assert.equal(isRepayNftStaked, false);
+            assert.equal(beforeRepayCount - 1, afterRepayCount);
+        });
     });
 
     describe("예외처리 검증", async () => {
