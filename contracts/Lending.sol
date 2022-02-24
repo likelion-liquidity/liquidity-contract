@@ -80,7 +80,9 @@ contract Lending is Ownable {
         require(lendingStatus.hasOwnership == true, "Already Liquidated");
 
         require(
-            dataHolder.getAvailableLoanAmount(nftAddress) >= loanAmount,
+            dataHolder.getAvailableLoanAmount(nftAddress).sub(
+                lendingStatus.loanAmount
+            ) >= loanAmount,
             "too much loanAmount"
         );
 
@@ -95,7 +97,9 @@ contract Lending is Ownable {
         stable.safeTransfer(msg.sender, loanAmount);
 
         //소유자 및 청산 유무 플래그 기록
-        stakedNft[msg.sender][nftAddress][nftTokenId].loanAmount = loanAmount;
+        stakedNft[msg.sender][nftAddress][nftTokenId].loanAmount = stakedNft[
+            msg.sender
+        ][nftAddress][nftTokenId].loanAmount.add(loanAmount);
     }
 
     function sync() public onlyOwner {
