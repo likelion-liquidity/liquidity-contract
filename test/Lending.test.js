@@ -153,7 +153,7 @@ contract("대출", async (accounts) => {
                 .be.fulfilled;
         });
 
-        it("현재 대출 가능한만큼만 대출할 수 있음", async () => {
+        it("현재 대출 가능한 한도 이상으로 대출함", async () => {
             const {
                 lendingContract,
                 nftContract,
@@ -179,8 +179,53 @@ contract("대출", async (accounts) => {
 
             await lendingContract.stake(nftContract.address, tokenId);
             await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId);
+
+            const stakedNftList = await lendingContract.getStakedNftList(
+                owner,
+                nftContract.address
+            );
+
             await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId).should.be
                 .rejected;
+        });
+
+        it("대출을 실행하면, 해당 대출금이 정확히 기록되어야함", async () => {
+            const {
+                lendingContract,
+                nftContract,
+                owner,
+                hacker,
+                stableContract,
+                notWhiteListContract,
+                dataHolderContract,
+            } = await prerequisite(accounts);
+
+            await nftContract.mint(owner, tokenId);
+            await nftContract.approve(lendingContract.address, tokenId);
+
+            const loanAmount = 300;
+            const nftKlayPrice = 1000;
+            const klayExchangeRate = 1;
+
+            await dataHolderContract.setFloorPrice(
+                nftContract.address,
+                encode(nftKlayPrice),
+                encode(klayExchangeRate)
+            );
+
+            await lendingContract.stake(nftContract.address, tokenId);
+            await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId);
+
+            const stakedNftList = await lendingContract.getStakedNftList(
+                owner,
+                nftContract.address
+            );
+
+            console.log(stakedNftList[0]);
+
+            // awa;
+            // await lendingContract.borrow(encode(loanAmount), nftContract.address, tokenId).should.be
+            //     .rejected;
         });
     });
 
@@ -223,7 +268,7 @@ contract("대출", async (accounts) => {
                 .rejected;
         });
 
-        it("NFT로 빌릴 수 있는 한도보다 높게 대출을 신청함", async () => {
+        it("NFT로 MAX LTV보다 높게 대출을 신청함", async () => {
             const {
                 lendingContract,
                 nftContract,
