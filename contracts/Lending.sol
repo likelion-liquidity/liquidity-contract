@@ -97,9 +97,10 @@ contract Lending is Ownable {
         stable.safeTransfer(msg.sender, loanAmount);
 
         //소유자 및 청산 유무 플래그 기록
-        stakedNft[msg.sender][nftAddress][nftTokenId].loanAmount = stakedNft[
+        uint256 index = getStakedNftIndex(msg.sender, nftAddress, nftTokenId);
+        stakedNft[msg.sender][nftAddress][index].loanAmount = stakedNft[
             msg.sender
-        ][nftAddress][nftTokenId].loanAmount.add(loanAmount);
+        ][nftAddress][index].loanAmount.add(loanAmount);
     }
 
     function sync() public onlyOwner {
@@ -146,7 +147,8 @@ contract Lending is Ownable {
         address nftAddress,
         uint256 nftTokenId
     ) public onlyOwner {
-        stakedNft[owner][nftAddress][nftTokenId].hasOwnership = false;
+        uint256 index = getStakedNftIndex(owner, nftAddress, nftTokenId);
+        stakedNft[owner][nftAddress][index].hasOwnership = false;
     }
 
     function isLiquidated(address nftAddress, uint256 nftTokenId)
@@ -168,8 +170,9 @@ contract Lending is Ownable {
         uint256 nftTokenId
     ) private view returns (NftLendingStatus memory) {
         require(owner == msg.sender, "Not owner");
+        uint256 index = getStakedNftIndex(owner, nftAddress, nftTokenId);
         NftLendingStatus memory lendingStatus = stakedNft[owner][nftAddress][
-            nftTokenId
+            index
         ];
 
         if (
@@ -258,6 +261,24 @@ contract Lending is Ownable {
             }
         }
         stakedNft[owner][nftAddress].pop();
+    }
+
+    function getStakedNftIndex(
+        address userAddress,
+        address nftAddress,
+        uint256 nftTokenId
+    ) private view returns (uint256) {
+        NftLendingStatus[] memory lendingStatusList = stakedNft[userAddress][
+            nftAddress
+        ];
+
+        for (uint256 i = 0; i < lendingStatusList.length; i++) {
+            if (lendingStatusList[i].nftTokenId == nftTokenId) {
+                return i;
+            }
+        }
+
+        revert("not found");
     }
 
     function onKIP7Received(
